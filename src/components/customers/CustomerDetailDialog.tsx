@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useSalesByCustomer } from '@/hooks/useSales'
 import { useDeleteCustomer } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -36,6 +37,7 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
   const [editOpen, setEditOpen] = useState(false)
   const [newSaleOpen, setNewSaleOpen] = useState(false)
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   if (!customer) return null
 
@@ -44,15 +46,10 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
 
   async function handleDelete() {
     if (!customer) return
-    if (
-      !confirm(
-        `¿Eliminar a "${customer.name}"? Sus ventas pasadas se conservan, pero quedarán sin cliente asignado.`,
-      )
-    )
-      return
     try {
       await deleteCustomer.mutateAsync(customer.id)
       toast.success('Cliente eliminado')
+      setDeleteConfirmOpen(false)
       onOpenChange(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
@@ -79,7 +76,7 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
                     <Pencil className="size-4" />
                     Editar
                   </DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onClick={handleDelete}>
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteConfirmOpen(true)}>
                     <Trash2 className="size-4" />
                     Eliminar
                   </DropdownMenuItem>
@@ -141,6 +138,14 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
         open={!!paymentSale}
         onOpenChange={(open) => !open && setPaymentSale(undefined)}
         sale={paymentSale}
+      />
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="¿Eliminar este cliente?"
+        description={`"${customer.name}" se eliminará. Sus ventas pasadas se conservan, pero quedarán sin cliente asignado. Esta acción no se puede deshacer.`}
+        pending={deleteCustomer.isPending}
+        onConfirm={handleDelete}
       />
     </>
   )

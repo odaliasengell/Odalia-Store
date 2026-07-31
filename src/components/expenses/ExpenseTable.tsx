@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useDeleteExpense } from '@/hooks/useExpenses'
 import { ExpenseFormDialog } from '@/components/expenses/ExpenseFormDialog'
@@ -24,13 +25,14 @@ import type { Expense, ExpenseWithStock } from '@/types'
 export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
   const deleteExpense = useDeleteExpense()
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
+  const [deletingExpense, setDeletingExpense] = useState<Expense | undefined>()
 
-  async function handleDelete(expense: Expense) {
-    if (!confirm(`¿Eliminar el gasto "${expense.description}"? Esta acción no se puede deshacer.`))
-      return
+  async function handleDelete() {
+    if (!deletingExpense) return
     try {
-      await deleteExpense.mutateAsync(expense.id)
+      await deleteExpense.mutateAsync(deletingExpense.id)
       toast.success('Gasto eliminado')
+      setDeletingExpense(undefined)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
     }
@@ -119,7 +121,7 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={() => handleDelete(expense)}
+                          onClick={() => setDeletingExpense(expense)}
                         >
                           <Trash2 className="size-4" />
                           Eliminar
@@ -138,6 +140,14 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
         open={!!editingExpense}
         onOpenChange={(open) => !open && setEditingExpense(undefined)}
         expense={editingExpense}
+      />
+      <ConfirmDialog
+        open={!!deletingExpense}
+        onOpenChange={(open) => !open && setDeletingExpense(undefined)}
+        title="¿Eliminar este gasto?"
+        description={`"${deletingExpense?.description}" se eliminará. Las ventas ya vinculadas a esta paca no se borran, pero perderán esa referencia. Esta acción no se puede deshacer.`}
+        pending={deleteExpense.isPending}
+        onConfirm={handleDelete}
       />
     </>
   )

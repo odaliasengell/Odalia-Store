@@ -14,10 +14,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { usePayments, useCreatePayment, useDeletePayment } from '@/hooks/usePayments'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS } from '@/types'
-import type { PaymentMethod, SaleWithBalance } from '@/types'
+import type { Payment, PaymentMethod, SaleWithBalance } from '@/types'
 
 const NO_METHOD = '__unspecified__'
 
@@ -35,6 +36,7 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [method, setMethod] = useState<string>(NO_METHOD)
+  const [deletingPayment, setDeletingPayment] = useState<Payment | undefined>()
 
   if (!sale) return null
 
@@ -77,11 +79,12 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
     }
   }
 
-  async function handleDelete(paymentId: string) {
-    if (!sale) return
+  async function handleDelete() {
+    if (!sale || !deletingPayment) return
     try {
-      await deletePayment.mutateAsync({ id: paymentId, sale_id: sale.id })
+      await deletePayment.mutateAsync({ id: deletingPayment.id, sale_id: sale.id })
       toast.success('Abono eliminado')
+      setDeletingPayment(undefined)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
     }
@@ -189,7 +192,7 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
                   variant="ghost"
                   size="icon"
                   className="size-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => handleDelete(p.id)}
+                  onClick={() => setDeletingPayment(p)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -204,6 +207,15 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDialog
+        open={!!deletingPayment}
+        onOpenChange={(open) => !open && setDeletingPayment(undefined)}
+        title="¿Eliminar este abono?"
+        description={`El abono de ${deletingPayment ? formatCurrency(deletingPayment.amount) : ''} se eliminará y el saldo pendiente de la venta aumentará. Esta acción no se puede deshacer.`}
+        pending={deletePayment.isPending}
+        onConfirm={handleDelete}
+      />
     </Dialog>
   )
 }

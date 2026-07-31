@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
@@ -28,12 +29,14 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
   const markDelivered = useMarkDelivered()
   const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
+  const [deletingSale, setDeletingSale] = useState<SaleWithBalance | undefined>()
 
-  async function handleDelete(sale: SaleWithBalance) {
-    if (!confirm(`¿Eliminar la venta "${sale.item_name}"? Esta acción no se puede deshacer.`)) return
+  async function handleDelete() {
+    if (!deletingSale) return
     try {
-      await deleteSale.mutateAsync(sale.id)
+      await deleteSale.mutateAsync(deletingSale.id)
       toast.success('Venta eliminada')
+      setDeletingSale(undefined)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
     }
@@ -156,7 +159,7 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={() => handleDelete(sale)}
+                          onClick={() => setDeletingSale(sale)}
                         >
                           <Trash2 className="size-4" />
                           Eliminar
@@ -180,6 +183,14 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
         open={!!paymentSale}
         onOpenChange={(open) => !open && setPaymentSale(undefined)}
         sale={paymentSale}
+      />
+      <ConfirmDialog
+        open={!!deletingSale}
+        onOpenChange={(open) => !open && setDeletingSale(undefined)}
+        title="¿Eliminar esta venta?"
+        description={`"${deletingSale?.item_name}" se eliminará junto con sus abonos registrados. Esta acción no se puede deshacer.`}
+        pending={deleteSale.isPending}
+        onConfirm={handleDelete}
       />
     </>
   )
