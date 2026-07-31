@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile topbar */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-full bg-brand-pink-strong text-white">
@@ -148,8 +148,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-8">
-          <div className="mx-auto w-full max-w-6xl">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-background p-4 md:p-8">
+          <div className="mx-auto w-full min-w-0 max-w-6xl">
             <TodayDeliveriesBanner />
             {children}
           </div>

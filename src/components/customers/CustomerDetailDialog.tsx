@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pencil, Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -8,8 +9,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { useSalesByCustomer } from '@/hooks/useSales'
+import { useDeleteCustomer } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
@@ -24,6 +32,7 @@ interface CustomerDetailDialogProps {
 
 export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerDetailDialogProps) {
   const { data: sales } = useSalesByCustomer(customer?.id)
+  const deleteCustomer = useDeleteCustomer()
   const [editOpen, setEditOpen] = useState(false)
   const [newSaleOpen, setNewSaleOpen] = useState(false)
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
@@ -33,16 +42,49 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
   const totalSpent = (sales ?? []).reduce((sum, s) => sum + s.total_amount, 0)
   const pendingBalance = (sales ?? []).reduce((sum, s) => sum + s.balance.balance_due, 0)
 
+  async function handleDelete() {
+    if (!customer) return
+    if (
+      !confirm(
+        `¿Eliminar a "${customer.name}"? Sus ventas pasadas se conservan, pero quedarán sin cliente asignado.`,
+      )
+    )
+      return
+    try {
+      await deleteCustomer.mutateAsync(customer.id)
+      toast.success('Cliente eliminado')
+      onOpenChange(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pr-8">
               <DialogTitle>{customer.name}</DialogTitle>
-              <Button variant="ghost" size="icon" className="size-8" onClick={() => setEditOpen(true)}>
-                <Pencil className="size-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon" className="size-8">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="size-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem variant="destructive" onClick={handleDelete}>
+                    <Trash2 className="size-4" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             {customer.phone && <DialogDescription>{customer.phone}</DialogDescription>}
           </DialogHeader>
