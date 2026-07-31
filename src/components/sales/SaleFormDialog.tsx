@@ -244,7 +244,7 @@ export function SaleFormDialog({
             photo_path: item.photoPath || null,
             notes: item.notes || null,
           })
-          const paymentAmount = item.initialPayment === '' ? total : Number(item.initialPayment) || 0
+          const paymentAmount = Number(item.initialPayment) || 0
           if (paymentAmount > 0) {
             await createPayment.mutateAsync({
               sale_id: created.id,
@@ -555,10 +555,11 @@ export function SaleFormDialog({
                             max={itemTotal(item) || undefined}
                             value={item.initialPayment}
                             onChange={(e) => updateItem(item.key, { initialPayment: e.target.value })}
-                            placeholder={itemTotal(item) ? itemTotal(item).toFixed(2) : '0.00'}
+                            placeholder="0.00"
                           />
                           <p className="text-xs text-muted-foreground">
-                            Déjalo vacío si te pagó todo, o pon un monto menor si es a crédito/abonos.
+                            Déjalo vacío o en 0 si es a crédito/abonos. Pon el monto si te pagó parte o
+                            todo.
                           </p>
                         </div>
                       )}
