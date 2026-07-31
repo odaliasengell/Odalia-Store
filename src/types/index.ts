@@ -13,7 +13,6 @@ export interface Sale {
   id: string
   sale_group_id: string
   item_name: string
-  category: string | null
   sale_price: number
   cost_price: number | null
   shipping_fee: number
@@ -111,21 +110,3 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
 }
-
-export const ITEM_CATEGORIES = [
-  'Bodys',
-  'Blusas',
-  'Camisetas',
-  'Busos',
-  'Conjuntos',
-  'Enterizos',
-  'Faldas',
-  'Palazzos',
-  'Pantalones',
-  'Pareos',
-  'Shorts',
-  'Trajes de baño',
-  'Vestidos',
-  'Licras',
-  'Otro',
-] as const

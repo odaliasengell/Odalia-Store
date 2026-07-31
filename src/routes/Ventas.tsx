@@ -9,7 +9,6 @@ import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { Pagination } from '@/components/Pagination'
 import { useSaleGroupsPage, type SaleFilters } from '@/hooks/useSales'
 import { useCustomers } from '@/hooks/useCustomers'
-import { ITEM_CATEGORIES } from '@/types'
 import type { PaymentStatus } from '@/types'
 
 const ALL = '__all__'
@@ -19,7 +18,6 @@ export function Ventas() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [customerId, setCustomerId] = useState(ALL)
-  const [category, setCategory] = useState(ALL)
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | typeof ALL>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -31,10 +29,9 @@ export function Ventas() {
       from: from || undefined,
       to: to || undefined,
       customerId: customerId === ALL ? undefined : customerId,
-      category: category === ALL ? undefined : category,
       paymentStatus: paymentStatus === ALL ? undefined : paymentStatus,
     }),
-    [from, to, customerId, category, paymentStatus],
+    [from, to, customerId, paymentStatus],
   )
 
   useEffect(() => {
@@ -46,10 +43,6 @@ export function Ventas() {
   const customerItems = useMemo(
     () => ({ [ALL]: 'Todos', ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])) }),
     [customers],
-  )
-  const categoryItems = useMemo(
-    () => ({ [ALL]: 'Todas', ...Object.fromEntries(ITEM_CATEGORIES.map((c) => [c, c])) }),
-    [],
   )
   const paymentStatusItems = {
     [ALL]: 'Todos',
@@ -73,7 +66,7 @@ export function Ventas() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-from">Desde</Label>
           <Input id="filter-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -97,26 +90,6 @@ export function Ventas() {
               {customers?.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Categoría</Label>
-          <Select
-            value={category}
-            onValueChange={(value) => setCategory(value ?? ALL)}
-            items={categoryItems}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todas</SelectItem>
-              {ITEM_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
                 </SelectItem>
               ))}
             </SelectContent>

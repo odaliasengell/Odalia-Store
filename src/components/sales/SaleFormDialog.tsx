@@ -21,7 +21,7 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { useUploadItemPhoto, useDeleteItemPhoto, getPhotoUrl } from '@/hooks/useItemPhoto'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { formatCurrency } from '@/lib/format'
-import { ITEM_CATEGORIES, PAYMENT_METHOD_LABELS } from '@/types'
+import { PAYMENT_METHOD_LABELS } from '@/types'
 import type { Customer, PaymentMethod, SaleWithBalance } from '@/types'
 
 const NO_CUSTOMER = '__none__'
@@ -31,7 +31,6 @@ const NO_METHOD = '__unspecified__'
 interface ItemFormState {
   key: string
   itemName: string
-  category: string
   salePrice: string
   costPrice: string
   hasShipping: boolean
@@ -48,7 +47,6 @@ function blankItem(): ItemFormState {
   return {
     key: crypto.randomUUID(),
     itemName: '',
-    category: '',
     salePrice: '',
     costPrice: '',
     hasShipping: false,
@@ -66,7 +64,6 @@ function itemFromSale(sale: SaleWithBalance): ItemFormState {
   return {
     key: sale.id,
     itemName: sale.item_name,
-    category: sale.category ?? '',
     salePrice: String(sale.sale_price),
     costPrice: sale.cost_price != null ? String(sale.cost_price) : '',
     hasShipping: sale.shipping_fee > 0,
@@ -220,7 +217,6 @@ export function SaleFormDialog({
         await updateSale.mutateAsync({
           id: sale.id,
           item_name: item.itemName,
-          category: item.category || null,
           sale_price: Number(item.salePrice),
           cost_price: item.costPrice ? Number(item.costPrice) : null,
           shipping_fee: item.hasShipping ? Number(item.shippingFee) || 0 : 0,
@@ -238,7 +234,6 @@ export function SaleFormDialog({
           const created = await createSale.mutateAsync({
             sale_group_id: activeGroupId,
             item_name: item.itemName,
-            category: item.category || null,
             sale_price: Number(item.salePrice),
             cost_price: item.costPrice ? Number(item.costPrice) : null,
             shipping_fee: item.hasShipping ? Number(item.shippingFee) || 0 : 0,
@@ -460,17 +455,7 @@ export function SaleFormDialog({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor={`category-${item.key}`}>Categoría</Label>
-                          <Input
-                            id={`category-${item.key}`}
-                            list="category-suggestions"
-                            value={item.category}
-                            onChange={(e) => updateItem(item.key, { category: e.target.value })}
-                            placeholder="Blusa, vestido…"
-                          />
-                        </div>
+                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor={`paca-${item.key}`}>Paca de origen (opcional)</Label>
                           <Select
@@ -582,12 +567,6 @@ export function SaleFormDialog({
                 </div>
               ))}
             </div>
-
-            <datalist id="category-suggestions">
-              {ITEM_CATEGORIES.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
 
             {!isEditing && (
               <button

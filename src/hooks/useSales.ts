@@ -13,7 +13,6 @@ export interface SaleFilters {
   from?: string
   to?: string
   customerId?: string
-  category?: string
   paymentStatus?: SaleBalance['payment_status']
 }
 
@@ -27,7 +26,6 @@ async function fetchSalesWithBalances(filters: SaleFilters = {}): Promise<SaleWi
   if (filters.from) query = query.gte('sale_date', filters.from)
   if (filters.to) query = query.lte('sale_date', filters.to)
   if (filters.customerId) query = query.eq('customer_id', filters.customerId)
-  if (filters.category) query = query.eq('category', filters.category)
 
   const { data: sales, error } = await query
   if (error) throw error
@@ -73,17 +71,6 @@ async function fetchSaleGroupsPage(
   page: number,
   pageSize: number,
 ): Promise<SaleGroupsPage> {
-  let categoryGroupIds: string[] | null = null
-  if (filters.category) {
-    const { data, error } = await supabase
-      .from('sales')
-      .select('sale_group_id')
-      .eq('category', filters.category)
-    if (error) throw error
-    categoryGroupIds = [...new Set((data as { sale_group_id: string }[]).map((d) => d.sale_group_id))]
-    if (categoryGroupIds.length === 0) return { groups: [], count: 0 }
-  }
-
   let query = supabase
     .from('sale_groups')
     .select('*', { count: 'exact' })
@@ -94,7 +81,6 @@ async function fetchSaleGroupsPage(
   if (filters.to) query = query.lte('sale_date', filters.to)
   if (filters.customerId) query = query.eq('customer_id', filters.customerId)
   if (filters.paymentStatus) query = query.eq('payment_status', filters.paymentStatus)
-  if (categoryGroupIds) query = query.in('sale_group_id', categoryGroupIds)
 
   const from = (page - 1) * pageSize
   const { data: groups, count, error } = await query.range(from, from + pageSize - 1)
@@ -376,7 +362,6 @@ export function useMarkDelivered() {
 export type SaleInput = {
   sale_group_id?: string
   item_name: string
-  category?: string | null
   sale_price: number
   cost_price?: number | null
   shipping_fee: number

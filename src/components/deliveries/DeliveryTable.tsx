@@ -90,9 +90,6 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
                     <p className="text-xs text-muted-foreground md:hidden">
                       {group.customer?.name ?? 'Cliente de paso'} · {formatCurrency(group.total_amount)}
                     </p>
-                    {single?.category && (
-                      <p className="text-xs text-muted-foreground">{single.category}</p>
-                    )}
                     {!single && (
                       <p className="truncate text-xs text-muted-foreground">
                         {group.items.map((i) => i.item_name).join(', ')}

@@ -138,9 +138,6 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                         </p>
                         {single ? (
                           <>
-                            {single.category && (
-                              <p className="text-xs text-muted-foreground">{single.category}</p>
-                            )}
                             {single.expense && (
                               <p className="text-xs text-muted-foreground">
                                 De: {single.expense.description}

@@ -228,10 +228,11 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{item.item_name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {[item.category, item.expense?.description].filter(Boolean).join(' · ') ||
-                          '—'}
-                      </p>
+                      {item.expense && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          De: {item.expense.description}
+                        </p>
+                      )}
                       {item.delivery_date && (
                         <p
                           className={`text-xs ${item.delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}
