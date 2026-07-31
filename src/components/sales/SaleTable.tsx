@@ -72,6 +72,16 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
     }
   }
 
+  async function handleMarkGroupDelivered(group: SaleGroupWithItems) {
+    const targets = group.items.filter((i) => i.delivery_date && !i.delivered)
+    try {
+      await Promise.all(targets.map((i) => markDelivered.mutateAsync({ id: i.id, delivered: true })))
+      toast.success('Venta marcada como entregada')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
   if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
@@ -193,44 +203,49 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                           <ReceiptText className="size-4" />
                           Ver venta completa
                         </DropdownMenuItem>
-                        {single && (
-                          <>
-                            <DropdownMenuItem onClick={() => setPaymentSale(single)}>
-                              <Wallet className="size-4" />
-                              Abonos
-                            </DropdownMenuItem>
-                            {single.delivery_date && (
-                              <DropdownMenuItem onClick={() => handleToggleDelivered(single)}>
-                                {single.delivered ? (
-                                  <Package className="size-4" />
-                                ) : (
-                                  <PackageCheck className="size-4" />
-                                )}
-                                {single.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={() => setEditingSale(single)}>
-                              <Pencil className="size-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDeletingSale(single)}
-                            >
-                              <Trash2 className="size-4" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {!single && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            single ? setPaymentSale(single) : setGroupId(group.sale_group_id)
+                          }
+                        >
+                          <Wallet className="size-4" />
+                          Abonos
+                        </DropdownMenuItem>
+                        {deliveryDate && (single || !group.delivered) && (
                           <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setDeletingGroup(group)}
+                            onClick={() =>
+                              single ? handleToggleDelivered(single) : handleMarkGroupDelivered(group)
+                            }
                           >
-                            <Trash2 className="size-4" />
-                            Eliminar venta completa
+                            {delivered ? (
+                              <Package className="size-4" />
+                            ) : (
+                              <PackageCheck className="size-4" />
+                            )}
+                            {single
+                              ? single.delivered
+                                ? 'Marcar como no entregada'
+                                : 'Marcar como entregada'
+                              : 'Marcar todas como entregadas'}
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          onClick={() =>
+                            single ? setEditingSale(single) : setGroupId(group.sale_group_id)
+                          }
+                        >
+                          <Pencil className="size-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            single ? setDeletingSale(single) : setDeletingGroup(group)
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                          {single ? 'Eliminar' : 'Eliminar venta completa'}
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
