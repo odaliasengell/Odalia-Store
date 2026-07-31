@@ -64,11 +64,11 @@ export function Dashboard() {
     }))
   }, [sales])
 
-  const topItems: RankedDatum[] = useMemo(() => {
+  const topExpenses: RankedDatum[] = useMemo(() => {
     const totals = new Map<string, number>()
     for (const sale of sales ?? []) {
-      const key = sale.item_name.trim()
-      totals.set(key, (totals.get(key) ?? 0) + sale.total_amount)
+      if (!sale.expense) continue
+      totals.set(sale.expense.description, (totals.get(sale.expense.description) ?? 0) + sale.total_amount)
     }
     return [...totals.entries()]
       .map(([label, value]) => ({ label, value }))
@@ -112,7 +112,7 @@ export function Dashboard() {
           <MonthlySalesChart data={monthlyData} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <RankedBarChart title="Prendas más vendidas" data={topItems} />
+            <RankedBarChart title="Top pacas por ventas" data={topExpenses} />
             <RankedBarChart title="Top clientes" data={topCustomers} />
           </div>
         </>
