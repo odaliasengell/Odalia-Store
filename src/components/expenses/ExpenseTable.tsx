@@ -50,13 +50,13 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Fecha</TableHead>
+              <TableHead className="hidden md:table-cell">Fecha</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead className="text-right">Prendas</TableHead>
-              <TableHead className="text-right">Vendidas</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Prendas</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Vendidas</TableHead>
               <TableHead className="text-right">Restantes</TableHead>
               <TableHead className="text-right">Monto</TableHead>
-              <TableHead className="text-right">Costo/prenda</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Costo/prenda</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -69,19 +69,23 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
               const { remaining, sold_count } = expense.stock
               return (
                 <TableRow key={expense.id}>
-                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground md:table-cell">
                     {formatDate(expense.expense_date)}
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{expense.description}</p>
+                    <p className="text-xs text-muted-foreground md:hidden">
+                      {formatDate(expense.expense_date)}
+                      {expense.item_count != null && ` · ${sold_count}/${expense.item_count} vendidas`}
+                    </p>
                     {expense.notes && (
                       <p className="text-xs text-muted-foreground">{expense.notes}</p>
                     )}
                   </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
+                  <TableCell className="hidden text-right text-sm text-muted-foreground md:table-cell">
                     {expense.item_count ?? '—'}
                   </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
+                  <TableCell className="hidden text-right text-sm text-muted-foreground md:table-cell">
                     {sold_count}
                   </TableCell>
                   <TableCell className="text-right text-sm">
@@ -96,7 +100,7 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
                   <TableCell className="text-right font-medium">
                     {formatCurrency(expense.amount)}
                   </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
+                  <TableCell className="hidden text-right text-sm text-muted-foreground md:table-cell">
                     {perItem != null ? formatCurrency(perItem) : '—'}
                   </TableCell>
                   <TableCell>

@@ -53,8 +53,8 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
             <TableRow>
               <TableHead>Entrega</TableHead>
               <TableHead>Prenda</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="hidden md:table-cell">Cliente</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Total</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -67,12 +67,15 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
                 </TableCell>
                 <TableCell>
                   <p className="font-medium">{sale.item_name}</p>
+                  <p className="text-xs text-muted-foreground md:hidden">
+                    {sale.customer?.name ?? 'Cliente de paso'} · {formatCurrency(sale.total_amount)}
+                  </p>
                   {sale.category && <p className="text-xs text-muted-foreground">{sale.category}</p>}
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="hidden text-sm md:table-cell">
                   {sale.customer?.name ?? <span className="text-muted-foreground">Cliente de paso</span>}
                 </TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className="hidden text-right font-medium md:table-cell">
                   {formatCurrency(sale.total_amount)}
                 </TableCell>
                 <TableCell>

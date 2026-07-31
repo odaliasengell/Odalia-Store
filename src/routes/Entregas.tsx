@@ -71,7 +71,7 @@ export function Entregas() {
           onValueChange={(v) => setStatus(v ?? ALL)}
           items={{ [ALL]: 'Todas', pendiente: 'Pendientes', entregada: 'Entregadas' }}
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

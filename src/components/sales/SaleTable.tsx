@@ -62,11 +62,11 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Fecha</TableHead>
+              <TableHead className="hidden md:table-cell">Fecha</TableHead>
               <TableHead>Prenda</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">Ganancia</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Ganancia</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -77,11 +77,14 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
                 sale.cost_price != null ? sale.total_amount - sale.cost_price : null
               return (
                 <TableRow key={sale.id}>
-                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground md:table-cell">
                     {formatDate(sale.sale_date)}
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{sale.item_name}</p>
+                    <p className="text-xs text-muted-foreground md:hidden">
+                      {formatDate(sale.sale_date)}
+                    </p>
                     {sale.category && (
                       <p className="text-xs text-muted-foreground">{sale.category}</p>
                     )}
@@ -109,7 +112,7 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
                       </p>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden text-right md:table-cell">
                     {profit != null ? (
                       <span className={profit >= 0 ? 'text-emerald-600' : 'text-destructive'}>
                         {formatCurrency(profit)}

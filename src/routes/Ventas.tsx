@@ -82,7 +82,7 @@ export function Ventas() {
             onValueChange={(value) => setCustomerId(value ?? ALL)}
             items={customerItems}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -102,7 +102,7 @@ export function Ventas() {
             onValueChange={(value) => setCategory(value ?? ALL)}
             items={categoryItems}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -122,7 +122,7 @@ export function Ventas() {
             onValueChange={(value) => setPaymentStatus((value ?? ALL) as typeof paymentStatus)}
             items={paymentStatusItems}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
