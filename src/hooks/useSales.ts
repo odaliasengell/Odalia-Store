@@ -384,6 +384,7 @@ export type SaleInput = {
   expense_id?: string | null
   sale_date: string
   delivery_date?: string | null
+  photo_path?: string | null
   notes?: string | null
 }
 

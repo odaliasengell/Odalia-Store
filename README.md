@@ -39,6 +39,7 @@ Abre `http://localhost:5173`, inicia sesión con el usuario que creaste en Supab
 - **Ventas:** registrar prenda, categoría, precio, costo opcional (para calcular ganancia), recargo de envío, cliente y fecha. Filtros por fecha, cliente, categoría y estado de pago.
 - **Crédito/abonos:** cada venta puede pagarse completa o a plazos; se puede registrar el pago inicial al crear la venta (con método de pago opcional: efectivo/transferencia) y agregar más abonos después, o marcar el saldo restante como pagado en un clic. El saldo pendiente se calcula automáticamente (badge Pagado / Parcial / Pendiente).
 - **Varias prendas por venta, estilo factura:** la tabla de Ventas muestra **una fila por venta** (no una por prenda) — si una venta tiene varias prendas, se ve como "3 prendas · $45.00". Al tocarla se abre la venta completa: ahí ves el total, el saldo, la lista de prendas, y puedes agregar más, editarlas o eliminarlas sin salir de esa pantalla.
+- **Foto por prenda (opcional):** al registrar o editar una prenda puedes subirle una foto. Se convierte a **WebP** en el propio navegador antes de subirla (se redimensiona y comprime), así ocupa una fracción del espacio de una foto normal — te alcanza para muchas más fotos en el plan gratis de Supabase. Se ve como miniatura en la venta y en la venta completa.
 - **Clientes:** alta, búsqueda, historial de compras y saldo pendiente por cliente.
 - **Gastos:** registra cada paca u otro costo del negocio (monto, cantidad de prendas, fecha) para ver el costo promedio por prenda. Al registrar una venta puedes elegir de qué paca salió la prenda; la app descuenta automáticamente el stock y muestra cuántas prendas quedan de cada paca (no bloquea la venta si ya no quedan, solo lo marca en rojo, por si el conteo real no cuadra exacto).
 - **Estadísticas:** ganancia por prenda, ventas del mes, monto por cobrar, gastos del negocio y **ganancia neta** (ingresos − gastos), ventas por mes (últimos 6 meses), prendas/categorías más vendidas y top clientes.
@@ -148,13 +149,34 @@ left join (
 group by s.sale_group_id;
 ```
 
+Y si ya tenías `sales` pero no las fotos de prendas, corre también esto — crea el bucket de Storage y sus permisos:
+
+```sql
+alter table public.sales add column if not exists photo_path text;
+
+insert into storage.buckets (id, name, public)
+values ('item-photos', 'item-photos', true)
+on conflict (id) do nothing;
+
+create policy "item_photos_read_public" on storage.objects
+  for select using (bucket_id = 'item-photos');
+
+create policy "item_photos_insert_authenticated" on storage.objects
+  for insert with check (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+
+create policy "item_photos_update_authenticated" on storage.objects
+  for update using (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+
+create policy "item_photos_delete_authenticated" on storage.objects
+  for delete using (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+```
+
 ## Nota sobre el aviso de entregas
 
 El aviso funciona **mientras tengas la app abierta** (o la abras ese día) — muestra un banner dentro de la app y, si activas el permiso del navegador, también una notificación nativa del sistema. No es un push real como WhatsApp que te llegue con la app cerrada; eso requeriría convertir la app en una PWA instalable más un servicio programado en Supabase — mucho más grande de construir. Si más adelante quieres eso, se puede platicar aparte.
 
 ## Ideas para más adelante (no incluidas aún)
 
-- Fotos de cada prenda (Supabase Storage) para un catálogo visual.
 - Exportar reportes de ventas/ganancias a Excel o PDF.
 - Roles de empleado reales (ocultar costos/ganancias a quien no sea la dueña) — el campo `role` en `profiles` ya está listo para esto.
 - Recordatorios de clientes con saldo vencido.

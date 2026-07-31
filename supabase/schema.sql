@@ -62,6 +62,9 @@ create table if not exists public.sales (
   sale_date date not null default current_date,
   delivery_date date,
   delivered boolean not null default false,
+  -- Ruta del objeto en el bucket "item-photos" (ya convertido a WebP en el
+  -- navegador antes de subirlo). Null si la prenda no tiene foto.
+  photo_path text,
   notes text,
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now()
@@ -209,3 +212,25 @@ create policy "payments_all_authenticated" on public.payments
 
 create policy "expenses_all_authenticated" on public.expenses
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- =========================================================
+-- 9. Fotos de prendas (Supabase Storage)
+-- =========================================================
+-- Bucket público: cualquiera con el link puede ver la foto (son solo fotos
+-- de mercancía, nada sensible), pero solo un usuario autenticado puede
+-- subir/editar/borrar.
+insert into storage.buckets (id, name, public)
+values ('item-photos', 'item-photos', true)
+on conflict (id) do nothing;
+
+create policy "item_photos_read_public" on storage.objects
+  for select using (bucket_id = 'item-photos');
+
+create policy "item_photos_insert_authenticated" on storage.objects
+  for insert with check (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+
+create policy "item_photos_update_authenticated" on storage.objects
+  for update using (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+
+create policy "item_photos_delete_authenticated" on storage.objects
+  for delete using (bucket_id = 'item-photos' and auth.role() = 'authenticated');

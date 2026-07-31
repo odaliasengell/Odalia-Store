@@ -19,6 +19,7 @@ import {
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { getPhotoUrl } from '@/hooks/useItemPhoto'
 import { useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
@@ -97,33 +98,46 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                     {formatDate(group.sale_date)}
                   </TableCell>
                   <TableCell>
-                    <p className="font-medium">
-                      {single ? single.item_name : `${group.item_count} prendas`}
-                    </p>
-                    <p className="text-xs text-muted-foreground md:hidden">
-                      {formatDate(group.sale_date)}
-                    </p>
-                    {single ? (
-                      <>
-                        {single.category && (
-                          <p className="text-xs text-muted-foreground">{single.category}</p>
-                        )}
-                        {single.expense && (
-                          <p className="text-xs text-muted-foreground">
-                            De: {single.expense.description}
+                    <div className="flex items-start gap-2">
+                      {single?.photo_path && (
+                        <img
+                          src={getPhotoUrl(single.photo_path) ?? ''}
+                          alt=""
+                          className="size-10 shrink-0 rounded-md border border-border object-cover"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {single ? single.item_name : `${group.item_count} prendas`}
+                        </p>
+                        <p className="text-xs text-muted-foreground md:hidden">
+                          {formatDate(group.sale_date)}
+                        </p>
+                        {single ? (
+                          <>
+                            {single.category && (
+                              <p className="text-xs text-muted-foreground">{single.category}</p>
+                            )}
+                            {single.expense && (
+                              <p className="text-xs text-muted-foreground">
+                                De: {single.expense.description}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="truncate text-xs text-muted-foreground">
+                            {group.items.map((i) => i.item_name).join(', ')}
                           </p>
                         )}
-                      </>
-                    ) : (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {group.items.map((i) => i.item_name).join(', ')}
-                      </p>
-                    )}
-                    {deliveryDate && (
-                      <p className={`text-xs ${delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}>
-                        {delivered ? 'Entregada' : 'Entrega'}: {formatDate(deliveryDate)}
-                      </p>
-                    )}
+                        {deliveryDate && (
+                          <p
+                            className={`text-xs ${delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}
+                          >
+                            {delivered ? 'Entregada' : 'Entrega'}: {formatDate(deliveryDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">
                     {group.customer?.name ?? (

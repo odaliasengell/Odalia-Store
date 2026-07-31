@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
 import { useSalesByGroup, useUpdateSaleGroup, useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
+import { getPhotoUrl } from '@/hooks/useItemPhoto'
 import { useCustomers } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import type { PaymentStatus, SaleWithBalance } from '@/types'
@@ -219,6 +220,13 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                     key={item.id}
                     className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
                   >
+                    {item.photo_path && (
+                      <img
+                        src={getPhotoUrl(item.photo_path) ?? ''}
+                        alt=""
+                        className="size-10 shrink-0 rounded-md border border-border object-cover"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{item.item_name}</p>
                       <p className="truncate text-xs text-muted-foreground">

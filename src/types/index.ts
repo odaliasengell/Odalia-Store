@@ -23,6 +23,7 @@ export interface Sale {
   sale_date: string
   delivery_date: string | null
   delivered: boolean
+  photo_path: string | null
   notes: string | null
   created_by: string | null
   created_at: string

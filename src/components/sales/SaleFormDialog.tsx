@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { PlusCircle, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { PlusCircle, Plus, Trash2, ChevronDown, ChevronUp, ImagePlus, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { useCustomers } from '@/hooks/useCustomers'
 import { useCreateSale, useUpdateSale } from '@/hooks/useSales'
 import { useCreatePayment } from '@/hooks/usePayments'
 import { useExpenses } from '@/hooks/useExpenses'
+import { useUploadItemPhoto, useDeleteItemPhoto, getPhotoUrl } from '@/hooks/useItemPhoto'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { formatCurrency } from '@/lib/format'
 import { ITEM_CATEGORIES, PAYMENT_METHOD_LABELS } from '@/types'
@@ -39,6 +40,8 @@ interface ItemFormState {
   notes: string
   initialPayment: string
   collapsed: boolean
+  photoPath: string
+  uploadingPhoto: boolean
 }
 
 function blankItem(): ItemFormState {
@@ -54,6 +57,8 @@ function blankItem(): ItemFormState {
     notes: '',
     initialPayment: '',
     collapsed: false,
+    photoPath: '',
+    uploadingPhoto: false,
   }
 }
 
@@ -70,6 +75,8 @@ function itemFromSale(sale: SaleWithBalance): ItemFormState {
     notes: sale.notes ?? '',
     initialPayment: '',
     collapsed: false,
+    photoPath: sale.photo_path ?? '',
+    uploadingPhoto: false,
   }
 }
 
@@ -102,6 +109,8 @@ export function SaleFormDialog({
   const createSale = useCreateSale()
   const updateSale = useUpdateSale()
   const createPayment = useCreatePayment()
+  const uploadPhoto = useUploadItemPhoto()
+  const deletePhoto = useDeleteItemPhoto()
   const isEditing = !!sale
 
   const [items, setItems] = useState<ItemFormState[]>([blankItem()])
@@ -112,7 +121,11 @@ export function SaleFormDialog({
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
   const [activeGroupId, setActiveGroupId] = useState('')
 
-  const pending = createSale.isPending || updateSale.isPending || createPayment.isPending
+  const pending =
+    createSale.isPending ||
+    updateSale.isPending ||
+    createPayment.isPending ||
+    items.some((i) => i.uploadingPhoto)
 
   const grandTotal = useMemo(() => items.reduce((sum, item) => sum + itemTotal(item), 0), [items])
 
@@ -170,6 +183,31 @@ export function SaleFormDialog({
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, collapsed: !it.collapsed } : it)))
   }
 
+  async function handlePhotoSelected(key: string, file: File | undefined) {
+    if (!file) return
+    updateItem(key, { uploadingPhoto: true })
+    try {
+      const path = await uploadPhoto.mutateAsync(file)
+      updateItem(key, { photoPath: path, uploadingPhoto: false })
+    } catch (err) {
+      updateItem(key, { uploadingPhoto: false })
+      toast.error(err instanceof Error ? err.message : 'No se pudo subir la foto')
+    }
+  }
+
+  async function handleRemovePhoto(key: string) {
+    const item = items.find((it) => it.key === key)
+    if (!item?.photoPath) return
+    const path = item.photoPath
+    updateItem(key, { photoPath: '' })
+    try {
+      await deletePhoto.mutateAsync(path)
+    } catch {
+      // Si falla el borrado en el servidor no pasa nada grave: solo queda
+      // un archivo huérfano en el bucket, pero la prenda ya no lo referencia.
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     try {
@@ -190,6 +228,7 @@ export function SaleFormDialog({
           expense_id: item.expenseId === NO_PACA ? null : item.expenseId,
           sale_date: saleDate,
           delivery_date: deliveryDate || null,
+          photo_path: item.photoPath || null,
           notes: item.notes || null,
         })
         toast.success('Venta actualizada')
@@ -207,6 +246,7 @@ export function SaleFormDialog({
             expense_id: item.expenseId === NO_PACA ? null : item.expenseId,
             sale_date: saleDate,
             delivery_date: deliveryDate || null,
+            photo_path: item.photoPath || null,
             notes: item.notes || null,
           })
           const paymentAmount = item.initialPayment === '' ? total : Number(item.initialPayment) || 0
@@ -381,6 +421,44 @@ export function SaleFormDialog({
                           onChange={(e) => updateItem(item.key, { itemName: e.target.value })}
                           placeholder="Ej. Blusa floral"
                         />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Foto (opcional)</Label>
+                        {item.photoPath ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={getPhotoUrl(item.photoPath) ?? ''}
+                              alt=""
+                              className="size-16 rounded-lg border border-border object-cover"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => handleRemovePhoto(item.key)}
+                            >
+                              <X className="size-3.5" />
+                              Quitar foto
+                            </Button>
+                          </div>
+                        ) : (
+                          <label className="flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-brand-pink-strong hover:text-brand-pink-strong">
+                            <ImagePlus className="size-4" />
+                            {item.uploadingPhoto ? 'Subiendo…' : 'Agregar foto'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={item.uploadingPhoto}
+                              onChange={(e) => {
+                                handlePhotoSelected(item.key, e.target.files?.[0])
+                                e.target.value = ''
+                              }}
+                            />
+                          </label>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
