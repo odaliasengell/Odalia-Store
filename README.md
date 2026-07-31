@@ -38,7 +38,7 @@ Abre `http://localhost:5173`, inicia sesión con el usuario que creaste en Supab
 - **Login** con Supabase Auth (rutas protegidas) y una tarjeta de **perfil** (nombre editable, correo, rol) con el botón de cerrar sesión, accesible desde la parte inferior del menú.
 - **Ventas:** registrar prenda, categoría, precio, costo opcional (para calcular ganancia), recargo de envío, cliente y fecha. Filtros por fecha, cliente, categoría y estado de pago.
 - **Crédito/abonos:** cada venta puede pagarse completa o a plazos; se puede registrar el pago inicial al crear la venta (con método de pago opcional: efectivo/transferencia) y agregar más abonos después, o marcar el saldo restante como pagado en un clic. El saldo pendiente se calcula automáticamente (badge Pagado / Parcial / Pendiente).
-- **Varias prendas por venta:** al registrar una venta puedes agregar varias prendas para el mismo cliente (botón "Agregar otra prenda") en vez de repetir el formulario una por una.
+- **Varias prendas por venta, estilo factura:** la tabla de Ventas muestra **una fila por venta** (no una por prenda) — si una venta tiene varias prendas, se ve como "3 prendas · $45.00". Al tocarla se abre la venta completa: ahí ves el total, el saldo, la lista de prendas, y puedes agregar más, editarlas o eliminarlas sin salir de esa pantalla.
 - **Clientes:** alta, búsqueda, historial de compras y saldo pendiente por cliente.
 - **Gastos:** registra cada paca u otro costo del negocio (monto, cantidad de prendas, fecha) para ver el costo promedio por prenda. Al registrar una venta puedes elegir de qué paca salió la prenda; la app descuenta automáticamente el stock y muestra cuántas prendas quedan de cada paca (no bloquea la venta si ya no quedan, solo lo marca en rojo, por si el conteo real no cuadra exacto).
 - **Estadísticas:** ganancia por prenda, ventas del mes, monto por cobrar, gastos del negocio y **ganancia neta** (ingresos − gastos), ventas por mes (últimos 6 meses), prendas/categorías más vendidas y top clientes.
@@ -112,6 +112,40 @@ alter table public.sales
   add column if not exists delivered boolean not null default false;
 
 create index if not exists sales_delivery_date_idx on public.sales (delivery_date);
+```
+
+Y si ya tenías `sales` pero no el agrupado de "venta completa" (varias prendas juntas, estilo factura), corre también esto — tus ventas existentes no se pierden, cada una simplemente queda como una "venta de una sola prenda":
+
+```sql
+alter table public.sales
+  add column if not exists sale_group_id uuid not null default gen_random_uuid();
+
+create index if not exists sales_sale_group_id_idx on public.sales (sale_group_id);
+
+create or replace view public.sale_groups as
+select
+  s.sale_group_id,
+  min(s.customer_id::text)::uuid as customer_id,
+  min(s.sale_date) as sale_date,
+  min(s.delivery_date) as delivery_date,
+  bool_and(s.delivered) as delivered,
+  count(s.id) as item_count,
+  sum(s.total_amount) as total_amount,
+  coalesce(sum(pay.paid), 0) as paid_amount,
+  sum(s.total_amount) - coalesce(sum(pay.paid), 0) as balance_due,
+  case
+    when coalesce(sum(pay.paid), 0) <= 0 then 'pendiente'
+    when coalesce(sum(pay.paid), 0) >= sum(s.total_amount) then 'pagado'
+    else 'parcial'
+  end as payment_status,
+  min(s.created_at) as created_at
+from public.sales s
+left join (
+  select sale_id, sum(amount) as paid
+  from public.payments
+  group by sale_id
+) pay on pay.sale_id = s.id
+group by s.sale_group_id;
 ```
 
 ## Nota sobre el aviso de entregas

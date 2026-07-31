@@ -1,24 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ExpenseTable } from '@/components/expenses/ExpenseTable'
 import { ExpenseFormDialog } from '@/components/expenses/ExpenseFormDialog'
-import { useExpenses } from '@/hooks/useExpenses'
+import { Pagination } from '@/components/Pagination'
+import { useExpensesPage, useExpenseTotals } from '@/hooks/useExpenses'
 import { formatCurrency } from '@/lib/format'
 
+const PAGE_SIZE = 20
+
 export function Gastos() {
-  const { data: expenses, isLoading } = useExpenses()
+  const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
 
-  const totalAmount = useMemo(
-    () => (expenses ?? []).reduce((sum, e) => sum + e.amount, 0),
-    [expenses],
-  )
-  const totalItems = useMemo(
-    () => (expenses ?? []).reduce((sum, e) => sum + (e.item_count ?? 0), 0),
-    [expenses],
-  )
+  const { data, isLoading } = useExpensesPage(page, PAGE_SIZE)
+  const { data: totals } = useExpenseTotals()
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,13 +36,13 @@ export function Gastos() {
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Gastado en total</p>
-            <p className="text-2xl font-semibold">{formatCurrency(totalAmount)}</p>
+            <p className="text-2xl font-semibold">{formatCurrency(totals?.totalAmount ?? 0)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Prendas compradas (registradas)</p>
-            <p className="text-2xl font-semibold">{totalItems}</p>
+            <p className="text-2xl font-semibold">{totals?.totalItems ?? 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -53,7 +50,10 @@ export function Gastos() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando gastos…</p>
       ) : (
-        <ExpenseTable expenses={expenses ?? []} />
+        <>
+          <ExpenseTable expenses={data?.expenses ?? []} />
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data?.count ?? 0} onPageChange={setPage} />
+        </>
       )}
 
       <ExpenseFormDialog open={createOpen} onOpenChange={setCreateOpen} />

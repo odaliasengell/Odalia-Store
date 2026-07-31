@@ -11,6 +11,7 @@ export interface Customer {
 
 export interface Sale {
   id: string
+  sale_group_id: string
   item_name: string
   category: string | null
   sale_price: number
@@ -55,6 +56,25 @@ export interface SaleBalance {
 
 export interface SaleWithBalance extends SaleWithCustomer {
   balance: SaleBalance
+}
+
+export interface SaleGroup {
+  sale_group_id: string
+  customer_id: string | null
+  sale_date: string
+  delivery_date: string | null
+  delivered: boolean
+  item_count: number
+  total_amount: number
+  paid_amount: number
+  balance_due: number
+  payment_status: PaymentStatus
+  created_at: string
+}
+
+export interface SaleGroupWithItems extends SaleGroup {
+  items: SaleWithBalance[]
+  customer: Pick<Customer, 'id' | 'name'> | null
 }
 
 export interface Expense {

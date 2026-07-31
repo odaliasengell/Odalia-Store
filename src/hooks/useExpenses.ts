@@ -30,6 +30,65 @@ export function useExpenses() {
   })
 }
 
+export interface ExpensesPage {
+  expenses: ExpenseWithStock[]
+  count: number
+}
+
+export function useExpensesPage(page: number, pageSize: number) {
+  return useQuery({
+    queryKey: ['expenses', 'page', page, pageSize],
+    queryFn: async (): Promise<ExpensesPage> => {
+      const from = (page - 1) * pageSize
+      const { data: expenses, count, error } = await supabase
+        .from('expenses')
+        .select('*', { count: 'exact' })
+        .order('expense_date', { ascending: false })
+        .range(from, from + pageSize - 1)
+      if (error) throw error
+
+      const ids = (expenses as Expense[]).map((e) => e.id)
+      let stock: ExpenseStock[] = []
+      if (ids.length > 0) {
+        const { data, error: stockError } = await supabase
+          .from('expense_stock')
+          .select('*')
+          .in('expense_id', ids)
+        if (stockError) throw stockError
+        stock = data as ExpenseStock[]
+      }
+      const stockMap = new Map(stock.map((s) => [s.expense_id, s]))
+
+      const merged = (expenses as Expense[]).map((expense) => ({
+        ...expense,
+        stock: stockMap.get(expense.id) ?? {
+          expense_id: expense.id,
+          item_count: expense.item_count,
+          sold_count: 0,
+          remaining: expense.item_count,
+        },
+      }))
+
+      return { expenses: merged, count: count ?? 0 }
+    },
+  })
+}
+
+export function useExpenseTotals() {
+  return useQuery({
+    queryKey: ['expenses', 'totals'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('expenses').select('amount, item_count')
+      if (error) throw error
+      const rows = data as { amount: number; item_count: number | null }[]
+      return {
+        totalAmount: rows.reduce((sum, r) => sum + r.amount, 0),
+        totalItems: rows.reduce((sum, r) => sum + (r.item_count ?? 0), 0),
+      }
+    },
+  })
+}
+
 export type ExpenseInput = {
   description: string
   amount: number

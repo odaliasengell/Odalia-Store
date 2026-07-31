@@ -1,14 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { useCustomers } from '@/hooks/useCustomers'
+import { Pagination } from '@/components/Pagination'
+import { useCustomersPage } from '@/hooks/useCustomers'
 import { useSalesByCustomer } from '@/hooks/useSales'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { CustomerDetailDialog } from '@/components/customers/CustomerDetailDialog'
 import { formatCurrency } from '@/lib/format'
 import type { Customer } from '@/types'
+
+const PAGE_SIZE = 24
 
 function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => void }) {
   const { data: sales } = useSalesByCustomer(customer.id)
@@ -36,19 +39,23 @@ function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => 
 }
 
 export function Clientes() {
-  const { data: customers, isLoading } = useCustomers()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [selected, setSelected] = useState<Customer | undefined>()
 
-  const filtered = useMemo(() => {
-    if (!customers) return []
-    const q = search.trim().toLowerCase()
-    if (!q) return customers
-    return customers.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q),
-    )
-  }, [customers, search])
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
+
+  const { data, isLoading } = useCustomersPage(debouncedSearch, page, PAGE_SIZE)
+  const customers = data?.customers ?? []
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,22 +84,25 @@ export function Clientes() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando clientes…</p>
-      ) : filtered.length === 0 ? (
+      ) : customers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             No hay clientes que coincidan con la búsqueda.
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((customer) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onOpen={() => setSelected(customer)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {customers.map((customer) => (
+              <CustomerCard
+                key={customer.id}
+                customer={customer}
+                onOpen={() => setSelected(customer)}
+              />
+            ))}
+          </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data?.count ?? 0} onPageChange={setPage} />
+        </>
       )}
 
       <CustomerFormDialog open={createOpen} onOpenChange={setCreateOpen} />

@@ -1,32 +1,29 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { DeliveryTable } from '@/components/deliveries/DeliveryTable'
-import { useDeliveries, type DeliveryFilters } from '@/hooks/useSales'
+import { Pagination } from '@/components/Pagination'
+import { useDeliveries, useDeliveryCounts, type DeliveryFilters } from '@/hooks/useSales'
 
 const ALL = '__all__'
+const PAGE_SIZE = 20
 
 export function Entregas() {
   const [status, setStatus] = useState<string>(ALL)
+  const [page, setPage] = useState(1)
 
   const filters: DeliveryFilters = useMemo(
     () => ({ status: status === ALL ? undefined : (status as 'pendiente' | 'entregada') }),
     [status],
   )
 
-  const { data: deliveries, isLoading } = useDeliveries(filters)
+  useEffect(() => {
+    setPage(1)
+  }, [filters])
 
-  const today = new Date().toISOString().slice(0, 10)
-  const counts = useMemo(() => {
-    const list = deliveries ?? []
-    return {
-      pendientes: list.filter((d) => !d.delivered).length,
-      atrasadas: list.filter((d) => !d.delivered && d.delivery_date! < today).length,
-      hoy: list.filter((d) => !d.delivered && d.delivery_date === today).length,
-      entregadas: list.filter((d) => d.delivered).length,
-    }
-  }, [deliveries, today])
+  const { data, isLoading } = useDeliveries(filters, page, PAGE_SIZE)
+  const { data: counts } = useDeliveryCounts()
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,25 +38,25 @@ export function Entregas() {
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Pendientes</p>
-            <p className="text-2xl font-semibold">{counts.pendientes}</p>
+            <p className="text-2xl font-semibold">{counts?.pendientes ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Para hoy</p>
-            <p className="text-2xl font-semibold text-brand-pink-strong">{counts.hoy}</p>
+            <p className="text-2xl font-semibold text-brand-pink-strong">{counts?.hoy ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Atrasadas</p>
-            <p className="text-2xl font-semibold text-rose-600">{counts.atrasadas}</p>
+            <p className="text-2xl font-semibold text-rose-600">{counts?.atrasadas ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">Entregadas</p>
-            <p className="text-2xl font-semibold text-emerald-600">{counts.entregadas}</p>
+            <p className="text-2xl font-semibold text-emerald-600">{counts?.entregadas ?? 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +82,10 @@ export function Entregas() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando entregas…</p>
       ) : (
-        <DeliveryTable deliveries={deliveries ?? []} />
+        <>
+          <DeliveryTable deliveries={data?.sales ?? []} />
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data?.count ?? 0} onPageChange={setPage} />
+        </>
       )}
     </div>
   )

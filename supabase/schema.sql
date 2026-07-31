@@ -48,6 +48,10 @@ create table if not exists public.customers (
 -- =========================================================
 create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
+  -- Prendas creadas juntas (misma venta) comparten este id; una prenda sola es
+  -- "grupo de una". Lo asigna la app explícitamente al crear, no depender del
+  -- default aquí para eso (el default solo sirve como respaldo/backfill).
+  sale_group_id uuid not null default gen_random_uuid(),
   item_name text not null,
   category text,
   sale_price numeric(10, 2) not null check (sale_price >= 0),
@@ -62,6 +66,8 @@ create table if not exists public.sales (
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now()
 );
+
+create index if not exists sales_sale_group_id_idx on public.sales (sale_group_id);
 
 create index if not exists sales_sale_date_idx on public.sales (sale_date);
 create index if not exists sales_customer_id_idx on public.sales (customer_id);
@@ -135,6 +141,37 @@ select
 from public.expenses e
 left join public.sales s on s.expense_id = e.id
 group by e.id, e.item_count;
+
+-- =========================================================
+-- 8. Vista de ventas agrupadas (una fila por "venta"/factura, sumando
+--    todas las prendas que comparten sale_group_id). Los pagos se
+--    pre-agregan por venta antes del join para no duplicar total_amount
+--    cuando una prenda tiene varios abonos.
+-- =========================================================
+create or replace view public.sale_groups as
+select
+  s.sale_group_id,
+  min(s.customer_id::text)::uuid as customer_id,
+  min(s.sale_date) as sale_date,
+  min(s.delivery_date) as delivery_date,
+  bool_and(s.delivered) as delivered,
+  count(s.id) as item_count,
+  sum(s.total_amount) as total_amount,
+  coalesce(sum(pay.paid), 0) as paid_amount,
+  sum(s.total_amount) - coalesce(sum(pay.paid), 0) as balance_due,
+  case
+    when coalesce(sum(pay.paid), 0) <= 0 then 'pendiente'
+    when coalesce(sum(pay.paid), 0) >= sum(s.total_amount) then 'pagado'
+    else 'parcial'
+  end as payment_status,
+  min(s.created_at) as created_at
+from public.sales s
+left join (
+  select sale_id, sum(amount) as paid
+  from public.payments
+  group by sale_id
+) pay on pay.sale_id = s.id
+group by s.sale_group_id;
 
 -- =========================================================
 -- Row Level Security

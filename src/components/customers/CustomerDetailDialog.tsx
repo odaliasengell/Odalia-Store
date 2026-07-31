@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
@@ -22,8 +22,8 @@ import { useDeleteCustomer } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
-import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import type { Customer, SaleWithBalance } from '@/types'
+import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
+import type { Customer, PaymentStatus, SaleWithBalance } from '@/types'
 
 interface CustomerDetailDialogProps {
   customer?: Customer
@@ -36,8 +36,26 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
   const deleteCustomer = useDeleteCustomer()
   const [editOpen, setEditOpen] = useState(false)
   const [newSaleOpen, setNewSaleOpen] = useState(false)
-  const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
+  const [groupId, setGroupId] = useState<string | undefined>()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+
+  const purchases = useMemo(() => {
+    const map = new Map<string, SaleWithBalance[]>()
+    for (const sale of sales ?? []) {
+      const arr = map.get(sale.sale_group_id) ?? []
+      arr.push(sale)
+      map.set(sale.sale_group_id, arr)
+    }
+    return [...map.entries()]
+      .map(([id, items]) => {
+        const total = items.reduce((sum, i) => sum + i.total_amount, 0)
+        const paid = items.reduce((sum, i) => sum + i.balance.paid_amount, 0)
+        const balanceDue = items.reduce((sum, i) => sum + i.balance.balance_due, 0)
+        const status: PaymentStatus = paid <= 0 ? 'pendiente' : balanceDue <= 0 ? 'pagado' : 'parcial'
+        return { groupId: id, items, date: items[0].sale_date, total, status }
+      })
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }, [sales])
 
   if (!customer) return null
 
@@ -108,22 +126,26 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
           </div>
 
           <div className="flex flex-col gap-2">
-            {!sales || sales.length === 0 ? (
+            {purchases.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin compras registradas.</p>
             ) : (
-              sales.map((sale) => (
+              purchases.map((purchase) => (
                 <button
-                  key={sale.id}
-                  onClick={() => setPaymentSale(sale)}
+                  key={purchase.groupId}
+                  onClick={() => setGroupId(purchase.groupId)}
                   className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-left text-sm hover:border-brand-pink-strong"
                 >
                   <div>
-                    <p className="font-medium">{sale.item_name}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(sale.sale_date)}</p>
+                    <p className="font-medium">
+                      {purchase.items.length > 1
+                        ? `${purchase.items.length} prendas`
+                        : purchase.items[0].item_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDate(purchase.date)}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{formatCurrency(sale.total_amount)}</span>
-                    <PaymentStatusBadge status={sale.balance.payment_status} />
+                    <span className="font-medium">{formatCurrency(purchase.total)}</span>
+                    <PaymentStatusBadge status={purchase.status} />
                   </div>
                 </button>
               ))
@@ -134,10 +156,10 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
 
       <CustomerFormDialog open={editOpen} onOpenChange={setEditOpen} customer={customer} />
       <SaleFormDialog open={newSaleOpen} onOpenChange={setNewSaleOpen} defaultCustomerId={customer.id} />
-      <PaymentDialog
-        open={!!paymentSale}
-        onOpenChange={(open) => !open && setPaymentSale(undefined)}
-        sale={paymentSale}
+      <SaleGroupDialog
+        open={!!groupId}
+        onOpenChange={(open) => !open && setGroupId(undefined)}
+        groupId={groupId}
       />
       <ConfirmDialog
         open={deleteConfirmOpen}

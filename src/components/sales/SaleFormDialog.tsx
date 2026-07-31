@@ -84,9 +84,19 @@ interface SaleFormDialogProps {
   onOpenChange: (open: boolean) => void
   sale?: SaleWithBalance
   defaultCustomerId?: string
+  defaultSaleDate?: string
+  /** Al agregar prendas a una venta ya existente, el grupo al que deben unirse. */
+  groupId?: string
 }
 
-export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: SaleFormDialogProps) {
+export function SaleFormDialog({
+  open,
+  onOpenChange,
+  sale,
+  defaultCustomerId,
+  defaultSaleDate,
+  groupId,
+}: SaleFormDialogProps) {
   const { data: customers } = useCustomers()
   const { data: expenses } = useExpenses()
   const createSale = useCreateSale()
@@ -100,6 +110,7 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
   const [deliveryDate, setDeliveryDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<string>(NO_METHOD)
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
+  const [activeGroupId, setActiveGroupId] = useState('')
 
   const pending = createSale.isPending || updateSale.isPending || createPayment.isPending
 
@@ -136,11 +147,12 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
     } else {
       setItems([blankItem()])
       setCustomerId(defaultCustomerId ?? NO_CUSTOMER)
-      setSaleDate(new Date().toISOString().slice(0, 10))
+      setSaleDate(defaultSaleDate ?? new Date().toISOString().slice(0, 10))
       setDeliveryDate('')
       setPaymentMethod(NO_METHOD)
+      setActiveGroupId(groupId ?? crypto.randomUUID())
     }
-  }, [open, sale, defaultCustomerId])
+  }, [open, sale, defaultCustomerId, defaultSaleDate, groupId])
 
   function updateItem(key: string, patch: Partial<ItemFormState>) {
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)))
@@ -185,6 +197,7 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
         for (const item of items) {
           const total = itemTotal(item)
           const created = await createSale.mutateAsync({
+            sale_group_id: activeGroupId,
             item_name: item.itemName,
             category: item.category || null,
             sale_price: Number(item.salePrice),
@@ -219,11 +232,15 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{isEditing ? 'Editar venta' : 'Registrar venta'}</DialogTitle>
+            <DialogTitle>
+              {isEditing ? 'Editar prenda' : groupId ? 'Agregar prenda a la venta' : 'Registrar venta'}
+            </DialogTitle>
             <DialogDescription>
               {isEditing
                 ? 'Captura la prenda vendida, su precio y, si aplica, el recargo de envío.'
-                : 'Puedes agregar varias prendas para el mismo cliente en una sola venta.'}
+                : groupId
+                  ? 'Se agregará junto con las demás prendas de esta venta.'
+                  : 'Puedes agregar varias prendas para el mismo cliente en una sola venta.'}
             </DialogDescription>
           </DialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -234,6 +251,7 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
                   id="sale-date"
                   type="date"
                   required
+                  disabled={!!groupId}
                   value={saleDate}
                   onChange={(e) => setSaleDate(e.target.value)}
                 />
@@ -241,19 +259,22 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="customer">Cliente</Label>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1 text-xs font-medium text-brand-pink-strong hover:underline"
-                    onClick={() => setCustomerDialogOpen(true)}
-                  >
-                    <PlusCircle className="size-3.5" />
-                    Nuevo
-                  </button>
+                  {!groupId && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs font-medium text-brand-pink-strong hover:underline"
+                      onClick={() => setCustomerDialogOpen(true)}
+                    >
+                      <PlusCircle className="size-3.5" />
+                      Nuevo
+                    </button>
+                  )}
                 </div>
                 <Select
                   value={customerId}
                   onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
                   items={customerItems}
+                  disabled={!!groupId}
                 >
                   <SelectTrigger id="customer" className="w-full">
                     <SelectValue placeholder="Selecciona un cliente" />
@@ -269,6 +290,13 @@ export function SaleFormDialog({ open, onOpenChange, sale, defaultCustomerId }: 
                 </Select>
               </div>
             </div>
+
+            {groupId && (
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Cliente y fecha son los mismos de la venta; para cambiarlos, edítalos desde la venta
+                completa.
+              </p>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="delivery-date">Fecha de entrega (opcional)</Label>

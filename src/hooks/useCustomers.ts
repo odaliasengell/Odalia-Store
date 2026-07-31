@@ -16,6 +16,37 @@ export function useCustomers() {
   })
 }
 
+export interface CustomersPage {
+  customers: Customer[]
+  count: number
+}
+
+function escapeOrFilter(value: string): string {
+  return value.replace(/[,()]/g, '')
+}
+
+export function useCustomersPage(search: string, page: number, pageSize: number) {
+  return useQuery({
+    queryKey: ['customers', 'page', search, page, pageSize],
+    queryFn: async (): Promise<CustomersPage> => {
+      let query = supabase
+        .from('customers')
+        .select('*', { count: 'exact' })
+        .order('name', { ascending: true })
+
+      const term = escapeOrFilter(search.trim())
+      if (term) {
+        query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+      }
+
+      const from = (page - 1) * pageSize
+      const { data, count, error } = await query.range(from, from + pageSize - 1)
+      if (error) throw error
+      return { customers: data as Customer[], count: count ?? 0 }
+    },
+  })
+}
+
 export function useCustomer(id: string | undefined) {
   return useQuery({
     queryKey: ['customers', id],

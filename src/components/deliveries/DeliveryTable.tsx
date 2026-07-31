@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Wallet, PackageCheck, Package } from 'lucide-react'
+import { MoreHorizontal, Pencil, ReceiptText, Wallet, PackageCheck, Package } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
+import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
 import type { SaleWithBalance } from '@/types'
 
@@ -27,6 +28,7 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
   const markDelivered = useMarkDelivered()
   const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
+  const [groupId, setGroupId] = useState<string | undefined>()
 
   async function handleToggleDelivered(sale: SaleWithBalance) {
     try {
@@ -61,7 +63,11 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
           </TableHeader>
           <TableBody>
             {deliveries.map((sale) => (
-              <TableRow key={sale.id}>
+              <TableRow
+                key={sale.id}
+                className="cursor-pointer"
+                onClick={() => setGroupId(sale.sale_group_id)}
+              >
                 <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                   {formatDate(sale.delivery_date!)}
                 </TableCell>
@@ -78,10 +84,10 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
                 <TableCell className="hidden text-right font-medium md:table-cell">
                   {formatCurrency(sale.total_amount)}
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DeliveryStatusBadge deliveryDate={sale.delivery_date!} delivered={sale.delivered} />
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -91,6 +97,10 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
                       }
                     />
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setGroupId(sale.sale_group_id)}>
+                        <ReceiptText className="size-4" />
+                        Ver venta completa
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleToggleDelivered(sale)}>
                         {sale.delivered ? (
                           <Package className="size-4" />
@@ -120,6 +130,11 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
         open={!!editingSale}
         onOpenChange={(open) => !open && setEditingSale(undefined)}
         sale={editingSale}
+      />
+      <SaleGroupDialog
+        open={!!groupId}
+        onOpenChange={(open) => !open && setGroupId(undefined)}
+        groupId={groupId}
       />
       <PaymentDialog
         open={!!paymentSale}

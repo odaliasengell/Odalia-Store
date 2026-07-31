@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Trash2, Wallet, PackageCheck, Package } from 'lucide-react'
+import { MoreHorizontal, Pencil, ReceiptText, Trash2, Wallet, PackageCheck, Package } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -21,15 +21,22 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
+import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import type { SaleWithBalance } from '@/types'
+import type { SaleGroupWithItems, SaleWithBalance } from '@/types'
 
-export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
+function groupProfit(group: SaleGroupWithItems): number | null {
+  if (group.items.length === 0 || !group.items.every((i) => i.cost_price != null)) return null
+  return group.items.reduce((sum, i) => sum + i.total_amount - (i.cost_price ?? 0), 0)
+}
+
+export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
   const deleteSale = useDeleteSale()
   const markDelivered = useMarkDelivered()
   const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
   const [deletingSale, setDeletingSale] = useState<SaleWithBalance | undefined>()
+  const [groupId, setGroupId] = useState<string | undefined>()
 
   async function handleDelete() {
     if (!deletingSale) return
@@ -51,7 +58,7 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
     }
   }
 
-  if (sales.length === 0) {
+  if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
         No hay ventas que coincidan con el filtro.
@@ -66,7 +73,7 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
           <TableHeader>
             <TableRow>
               <TableHead className="hidden md:table-cell">Fecha</TableHead>
-              <TableHead>Prenda</TableHead>
+              <TableHead>Prenda(s)</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="hidden text-right md:table-cell">Ganancia</TableHead>
@@ -75,45 +82,56 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sales.map((sale) => {
-              const profit =
-                sale.cost_price != null ? sale.total_amount - sale.cost_price : null
+            {groups.map((group) => {
+              const single = group.items.length === 1 ? group.items[0] : undefined
+              const profit = groupProfit(group)
+              const deliveryDate = single ? single.delivery_date : group.delivery_date
+              const delivered = single ? single.delivered : group.delivered
               return (
-                <TableRow key={sale.id}>
+                <TableRow
+                  key={group.sale_group_id}
+                  className="cursor-pointer"
+                  onClick={() => setGroupId(group.sale_group_id)}
+                >
                   <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground md:table-cell">
-                    {formatDate(sale.sale_date)}
+                    {formatDate(group.sale_date)}
                   </TableCell>
                   <TableCell>
-                    <p className="font-medium">{sale.item_name}</p>
-                    <p className="text-xs text-muted-foreground md:hidden">
-                      {formatDate(sale.sale_date)}
+                    <p className="font-medium">
+                      {single ? single.item_name : `${group.item_count} prendas`}
                     </p>
-                    {sale.category && (
-                      <p className="text-xs text-muted-foreground">{sale.category}</p>
+                    <p className="text-xs text-muted-foreground md:hidden">
+                      {formatDate(group.sale_date)}
+                    </p>
+                    {single ? (
+                      <>
+                        {single.category && (
+                          <p className="text-xs text-muted-foreground">{single.category}</p>
+                        )}
+                        {single.expense && (
+                          <p className="text-xs text-muted-foreground">
+                            De: {single.expense.description}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {group.items.map((i) => i.item_name).join(', ')}
+                      </p>
                     )}
-                    {sale.expense && (
-                      <p className="text-xs text-muted-foreground">De: {sale.expense.description}</p>
-                    )}
-                    {sale.delivery_date && (
-                      <p
-                        className={`text-xs ${sale.delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}
-                      >
-                        {sale.delivered ? 'Entregada' : 'Entrega'}: {formatDate(sale.delivery_date)}
+                    {deliveryDate && (
+                      <p className={`text-xs ${delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}>
+                        {delivered ? 'Entregada' : 'Entrega'}: {formatDate(deliveryDate)}
                       </p>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {sale.customer?.name ?? (
+                    {group.customer?.name ?? (
                       <span className="text-muted-foreground">Cliente de paso</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {formatCurrency(sale.total_amount)}
-                    {sale.shipping_fee > 0 && (
-                      <p className="text-xs font-normal text-muted-foreground">
-                        incl. envío {formatCurrency(sale.shipping_fee)}
-                      </p>
-                    )}
+                    {formatCurrency(group.total_amount)}
                   </TableCell>
                   <TableCell className="hidden text-right md:table-cell">
                     {profit != null ? (
@@ -125,11 +143,16 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <button onClick={() => setPaymentSale(sale)}>
-                      <PaymentStatusBadge status={sale.balance.payment_status} />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        single ? setPaymentSale(single) : setGroupId(group.sale_group_id)
+                      }}
+                    >
+                      <PaymentStatusBadge status={group.payment_status} />
                     </button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
@@ -139,31 +162,39 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
                         }
                       />
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPaymentSale(sale)}>
-                          <Wallet className="size-4" />
-                          Abonos
+                        <DropdownMenuItem onClick={() => setGroupId(group.sale_group_id)}>
+                          <ReceiptText className="size-4" />
+                          Ver venta completa
                         </DropdownMenuItem>
-                        {sale.delivery_date && (
-                          <DropdownMenuItem onClick={() => handleToggleDelivered(sale)}>
-                            {sale.delivered ? (
-                              <Package className="size-4" />
-                            ) : (
-                              <PackageCheck className="size-4" />
+                        {single && (
+                          <>
+                            <DropdownMenuItem onClick={() => setPaymentSale(single)}>
+                              <Wallet className="size-4" />
+                              Abonos
+                            </DropdownMenuItem>
+                            {single.delivery_date && (
+                              <DropdownMenuItem onClick={() => handleToggleDelivered(single)}>
+                                {single.delivered ? (
+                                  <Package className="size-4" />
+                                ) : (
+                                  <PackageCheck className="size-4" />
+                                )}
+                                {single.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
+                              </DropdownMenuItem>
                             )}
-                            {sale.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
-                          </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditingSale(single)}>
+                              <Pencil className="size-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDeletingSale(single)}
+                            >
+                              <Trash2 className="size-4" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </>
                         )}
-                        <DropdownMenuItem onClick={() => setEditingSale(sale)}>
-                          <Pencil className="size-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeletingSale(sale)}
-                        >
-                          <Trash2 className="size-4" />
-                          Eliminar
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -178,6 +209,11 @@ export function SaleTable({ sales }: { sales: SaleWithBalance[] }) {
         open={!!editingSale}
         onOpenChange={(open) => !open && setEditingSale(undefined)}
         sale={editingSale}
+      />
+      <SaleGroupDialog
+        open={!!groupId}
+        onOpenChange={(open) => !open && setGroupId(undefined)}
+        groupId={groupId}
       />
       <PaymentDialog
         open={!!paymentSale}

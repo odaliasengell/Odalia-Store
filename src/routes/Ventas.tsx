@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SaleTable } from '@/components/sales/SaleTable'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
-import { useSales, type SaleFilters } from '@/hooks/useSales'
+import { Pagination } from '@/components/Pagination'
+import { useSaleGroupsPage, type SaleFilters } from '@/hooks/useSales'
 import { useCustomers } from '@/hooks/useCustomers'
 import { ITEM_CATEGORIES } from '@/types'
 import type { PaymentStatus } from '@/types'
 
 const ALL = '__all__'
+const PAGE_SIZE = 20
 
 export function Ventas() {
   const [from, setFrom] = useState('')
@@ -20,6 +22,7 @@ export function Ventas() {
   const [category, setCategory] = useState(ALL)
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | typeof ALL>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
+  const [page, setPage] = useState(1)
 
   const { data: customers } = useCustomers()
 
@@ -34,7 +37,11 @@ export function Ventas() {
     [from, to, customerId, category, paymentStatus],
   )
 
-  const { data: sales, isLoading } = useSales(filters)
+  useEffect(() => {
+    setPage(1)
+  }, [filters])
+
+  const { data, isLoading } = useSaleGroupsPage(filters, page, PAGE_SIZE)
 
   const customerItems = useMemo(
     () => ({ [ALL]: 'Todos', ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])) }),
@@ -138,7 +145,10 @@ export function Ventas() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando ventas…</p>
       ) : (
-        <SaleTable sales={sales ?? []} />
+        <>
+          <SaleTable groups={data?.groups ?? []} />
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data?.count ?? 0} onPageChange={setPage} />
+        </>
       )}
 
       <SaleFormDialog open={createOpen} onOpenChange={setCreateOpen} />
