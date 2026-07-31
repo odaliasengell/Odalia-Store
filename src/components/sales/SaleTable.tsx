@@ -20,7 +20,7 @@ import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { getPhotoUrl } from '@/hooks/useItemPhoto'
-import { useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
+import { useDeleteSale, useDeleteSaleGroup, useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
@@ -33,10 +33,12 @@ function groupProfit(group: SaleGroupWithItems): number | null {
 
 export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
   const deleteSale = useDeleteSale()
+  const deleteSaleGroup = useDeleteSaleGroup()
   const markDelivered = useMarkDelivered()
   const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
   const [deletingSale, setDeletingSale] = useState<SaleWithBalance | undefined>()
+  const [deletingGroup, setDeletingGroup] = useState<SaleGroupWithItems | undefined>()
   const [groupId, setGroupId] = useState<string | undefined>()
 
   async function handleDelete() {
@@ -45,6 +47,17 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
       await deleteSale.mutateAsync(deletingSale.id)
       toast.success('Venta eliminada')
       setDeletingSale(undefined)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
+  async function handleDeleteGroup() {
+    if (!deletingGroup) return
+    try {
+      await deleteSaleGroup.mutateAsync(deletingGroup.sale_group_id)
+      toast.success('Venta eliminada')
+      setDeletingGroup(undefined)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
     }
@@ -209,6 +222,15 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                             </DropdownMenuItem>
                           </>
                         )}
+                        {!single && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeletingGroup(group)}
+                          >
+                            <Trash2 className="size-4" />
+                            Eliminar venta completa
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -241,6 +263,14 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
         description={`"${deletingSale?.item_name}" se eliminará junto con sus abonos registrados. Esta acción no se puede deshacer.`}
         pending={deleteSale.isPending}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={!!deletingGroup}
+        onOpenChange={(open) => !open && setDeletingGroup(undefined)}
+        title="¿Eliminar esta venta completa?"
+        description={`Se eliminarán las ${deletingGroup?.item_count ?? 0} prendas de esta venta junto con sus abonos registrados. Esta acción no se puede deshacer.`}
+        pending={deleteSaleGroup.isPending}
+        onConfirm={handleDeleteGroup}
       />
     </>
   )

@@ -443,3 +443,17 @@ export function useDeleteSale() {
     },
   })
 }
+
+export function useDeleteSaleGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      const { error } = await supabase.from('sales').delete().eq('sale_group_id', groupId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+    },
+  })
+}
