@@ -73,7 +73,7 @@ export function CustomerFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md lg:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
           <DialogDescription>
@@ -83,24 +83,26 @@ export function CustomerFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="customer-name">Nombre</Label>
-            <Input
-              id="customer-name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre del cliente"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="customer-phone">Teléfono (opcional)</Label>
-            <Input
-              id="customer-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Ej. 5512345678"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="customer-name">Nombre</Label>
+              <Input
+                id="customer-name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nombre del cliente"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="customer-phone">Teléfono (opcional)</Label>
+              <Input
+                id="customer-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ej. 5512345678"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="customer-notes">Notas (opcional)</Label>

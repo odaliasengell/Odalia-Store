@@ -77,7 +77,7 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg lg:max-w-2xl">
           <DialogHeader>
             <div className="flex items-center justify-between pr-8">
               <DialogTitle>{customer.name}</DialogTitle>
@@ -125,7 +125,7 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
             </Button>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {purchases.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin compras registradas.</p>
             ) : (

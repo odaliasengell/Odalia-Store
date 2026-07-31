@@ -270,7 +270,7 @@ export function SaleFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg lg:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {isEditing ? 'Editar prenda' : groupId ? 'Agregar prenda a la venta' : 'Registrar venta'}
@@ -284,7 +284,7 @@ export function SaleFormDialog({
             </DialogDescription>
           </DialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="sale-date">Fecha</Label>
                 <Input
@@ -329,6 +329,15 @@ export function SaleFormDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                <Label htmlFor="delivery-date">Fecha de entrega (opcional)</Label>
+                <Input
+                  id="delivery-date"
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
+              </div>
             </div>
 
             {groupId && (
@@ -337,19 +346,9 @@ export function SaleFormDialog({
                 completa.
               </p>
             )}
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="delivery-date">Fecha de entrega (opcional)</Label>
-              <Input
-                id="delivery-date"
-                type="date"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Si la pones, te avisaremos ese día en la app para que no se te olvide entregarla.
-              </p>
-            </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Si pones fecha de entrega, te avisaremos ese día en la app para que no se te olvide.
+            </p>
 
             {!isEditing && (
               <div className="flex flex-col gap-1.5">
@@ -461,7 +460,7 @@ export function SaleFormDialog({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor={`category-${item.key}`}>Categoría</Label>
                           <Input
@@ -497,9 +496,6 @@ export function SaleFormDialog({
                             </SelectContent>
                           </Select>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor={`sale-price-${item.key}`}>Precio de venta ($)</Label>
                           <Input

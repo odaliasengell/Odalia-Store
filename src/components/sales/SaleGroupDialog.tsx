@@ -118,7 +118,7 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg lg:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Venta completa</DialogTitle>
             <DialogDescription>
@@ -132,7 +132,7 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
             <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="group-date">Fecha</Label>
                   <Input
@@ -162,16 +162,15 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="group-delivery">Fecha de entrega (opcional)</Label>
-                <Input
-                  id="group-delivery"
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                />
+                <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                  <Label htmlFor="group-delivery">Fecha de entrega (opcional)</Label>
+                  <Input
+                    id="group-delivery"
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                  />
+                </div>
               </div>
 
               {dirty && (

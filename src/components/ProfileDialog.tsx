@@ -62,7 +62,7 @@ export function ProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm lg:max-w-md">
         <DialogHeader>
           <DialogTitle>Mi perfil</DialogTitle>
           <DialogDescription>Tus datos de acceso a Odalia Store.</DialogDescription>

@@ -92,7 +92,7 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md lg:max-w-lg">
         <DialogHeader>
           <DialogTitle>Abonos — {sale.item_name}</DialogTitle>
           <DialogDescription>
@@ -103,8 +103,8 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
         </DialogHeader>
 
         <form className="flex flex-col gap-3" onSubmit={handleAddPayment}>
-          <div className="flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1.5">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="payment-amount">Monto del abono</Label>
               <Input
                 id="payment-amount"
@@ -123,13 +123,9 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-36"
               />
             </div>
-          </div>
-
-          <div className="flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1.5">
+            <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
               <Label htmlFor="payment-method">Método de pago (opcional)</Label>
               <Select
                 value={method}
@@ -148,6 +144,9 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <Button
               type="submit"
               disabled={createPayment.isPending || sale.balance.balance_due <= 0}

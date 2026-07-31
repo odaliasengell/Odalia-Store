@@ -75,7 +75,7 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md lg:max-w-xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar gasto' : 'Registrar gasto'}</DialogTitle>
           <DialogDescription>
@@ -94,7 +94,7 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="expense-amount">Monto ($)</Label>
               <Input
@@ -118,19 +118,18 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                 onChange={(e) => setExpenseDate(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="expense-items">Cantidad de prendas (opcional)</Label>
-            <Input
-              id="expense-items"
-              type="number"
-              min="0"
-              step="1"
-              value={itemCount}
-              onChange={(e) => setItemCount(e.target.value)}
-              placeholder="Para ver el costo promedio por prenda"
-            />
+            <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+              <Label htmlFor="expense-items">Cantidad de prendas (opcional)</Label>
+              <Input
+                id="expense-items"
+                type="number"
+                min="0"
+                step="1"
+                value={itemCount}
+                onChange={(e) => setItemCount(e.target.value)}
+                placeholder="Para el costo por prenda"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
