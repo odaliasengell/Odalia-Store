@@ -83,8 +83,8 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDate(group.delivery_date!)}
                   </TableCell>
-                  <TableCell>
-                    <p className="font-medium">
+                  <TableCell className="max-w-[220px] whitespace-normal sm:max-w-xs">
+                    <p className="break-words font-medium">
                       {single ? single.item_name : `${group.item_count} prendas`}
                     </p>
                     <p className="text-xs text-muted-foreground md:hidden">
@@ -96,7 +96,7 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
                       </p>
                     )}
                   </TableCell>
-                  <TableCell className="hidden text-sm md:table-cell">
+                  <TableCell className="hidden max-w-[140px] whitespace-normal break-words text-sm md:table-cell">
                     {group.customer?.name ?? (
                       <span className="text-muted-foreground">Cliente de paso</span>
                     )}

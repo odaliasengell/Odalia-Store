@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, ReceiptText, Trash2, Wallet, PackageCheck, Package } from 'lucide-react'
+import {
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  ReceiptText,
+  Trash2,
+  Wallet,
+  PackageCheck,
+  Package,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -20,6 +29,7 @@ import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { getPhotoUrl } from '@/hooks/useItemPhoto'
+import { buildSaleReceiptMessage, buildWhatsAppUrl, hasUsablePhone } from '@/lib/whatsapp'
 import { useDeleteSale, useDeleteSaleGroup, useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
@@ -82,6 +92,19 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
     }
   }
 
+  function handleSendWhatsApp(group: SaleGroupWithItems) {
+    if (!group.customer?.phone) return
+    const message = buildSaleReceiptMessage({
+      customerName: group.customer.name,
+      saleDate: group.sale_date,
+      items: group.items,
+      totalAmount: group.total_amount,
+      paidAmount: group.paid_amount,
+      balanceDue: group.balance_due,
+    })
+    window.open(buildWhatsAppUrl(group.customer.phone, message), '_blank')
+  }
+
   if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
@@ -120,7 +143,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                   <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground md:table-cell">
                     {formatDate(group.sale_date)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-[220px] whitespace-normal sm:max-w-xs">
                     <div className="flex items-start gap-2">
                       {single?.photo_path && (
                         <img
@@ -130,7 +153,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                         />
                       )}
                       <div className="min-w-0">
-                        <p className="font-medium">
+                        <p className="break-words font-medium">
                           {single ? single.item_name : `${group.item_count} prendas`}
                         </p>
                         <p className="text-xs text-muted-foreground md:hidden">
@@ -139,7 +162,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                         {single ? (
                           <>
                             {single.expense && (
-                              <p className="text-xs text-muted-foreground">
+                              <p className="break-words text-xs text-muted-foreground">
                                 De: {single.expense.description}
                               </p>
                             )}
@@ -159,7 +182,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="max-w-[140px] whitespace-normal break-words text-sm">
                     {group.customer?.name ?? (
                       <span className="text-muted-foreground">Cliente de paso</span>
                     )}
@@ -200,6 +223,12 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                           <ReceiptText className="size-4" />
                           Ver venta completa
                         </DropdownMenuItem>
+                        {hasUsablePhone(group.customer?.phone) && (
+                          <DropdownMenuItem onClick={() => handleSendWhatsApp(group)}>
+                            <MessageCircle className="size-4" />
+                            Enviar por WhatsApp
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={() =>
                             single ? setPaymentSale(single) : setGroupId(group.sale_group_id)

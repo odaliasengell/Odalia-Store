@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Package, PackageCheck, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import {
+  MessageCircle,
+  MoreHorizontal,
+  Package,
+  PackageCheck,
+  Pencil,
+  Plus,
+  Trash2,
+  Wallet,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +35,7 @@ import { useSalesByGroup, useUpdateSaleGroup, useDeleteSale, useMarkDelivered } 
 import { getPhotoUrl } from '@/hooks/useItemPhoto'
 import { useCustomers } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { buildSaleReceiptMessage, buildWhatsAppUrl, hasUsablePhone } from '@/lib/whatsapp'
 import type { PaymentStatus, SaleWithBalance } from '@/types'
 
 const NO_CUSTOMER = '__none__'
@@ -203,6 +213,35 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                   <p className="text-xs text-muted-foreground">Estado</p>
                   <PaymentStatusBadge status={status} />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 self-start"
+                  disabled={!hasUsablePhone(first?.customer?.phone)}
+                  onClick={() => {
+                    if (!first?.customer?.phone) return
+                    const message = buildSaleReceiptMessage({
+                      customerName: first.customer.name,
+                      saleDate,
+                      items: items ?? [],
+                      totalAmount,
+                      paidAmount,
+                      balanceDue,
+                    })
+                    window.open(buildWhatsAppUrl(first.customer.phone, message), '_blank')
+                  }}
+                >
+                  <MessageCircle className="size-4" />
+                  Enviar por WhatsApp
+                </Button>
+                {!hasUsablePhone(first?.customer?.phone) && (
+                  <p className="text-xs text-muted-foreground">
+                    Agrega el teléfono del cliente para poder enviarle el recibo por WhatsApp.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-between">

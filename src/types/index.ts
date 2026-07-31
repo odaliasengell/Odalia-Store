@@ -29,7 +29,7 @@ export interface Sale {
 }
 
 export interface SaleWithCustomer extends Sale {
-  customer: Pick<Customer, 'id' | 'name'> | null
+  customer: Pick<Customer, 'id' | 'name' | 'phone'> | null
   expense: Pick<Expense, 'id' | 'description'> | null
 }
 
@@ -74,7 +74,7 @@ export interface SaleGroup {
 
 export interface SaleGroupWithItems extends SaleGroup {
   items: SaleWithBalance[]
-  customer: Pick<Customer, 'id' | 'name'> | null
+  customer: Pick<Customer, 'id' | 'name' | 'phone'> | null
 }
 
 export interface Expense {

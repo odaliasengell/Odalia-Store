@@ -100,8 +100,11 @@ export function CustomerFormDialog({
                 id="customer-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ej. 5512345678"
+                placeholder="Ej. +593987654321"
               />
+              <p className="text-xs text-muted-foreground">
+                Incluye el código de país para poder enviar el recibo por WhatsApp.
+              </p>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">

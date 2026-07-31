@@ -19,7 +19,7 @@ export interface SaleFilters {
 async function fetchSalesWithBalances(filters: SaleFilters = {}): Promise<SaleWithBalance[]> {
   let query = supabase
     .from('sales')
-    .select('*, customer:customers(id, name), expense:expenses(id, description)')
+    .select('*, customer:customers(id, name, phone), expense:expenses(id, description)')
     .order('sale_date', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -91,7 +91,7 @@ async function fetchSaleGroupsPage(
   if (groupIds.length > 0) {
     const { data: rawItems, error: itemsError } = await supabase
       .from('sales')
-      .select('*, customer:customers(id, name), expense:expenses(id, description)')
+      .select('*, customer:customers(id, name, phone), expense:expenses(id, description)')
       .in('sale_group_id', groupIds)
       .order('created_at', { ascending: true })
     if (itemsError) throw itemsError
@@ -153,7 +153,7 @@ export function useSalesByCustomer(customerId: string | undefined) {
 async function fetchSalesByGroup(groupId: string): Promise<SaleWithBalance[]> {
   const { data: sales, error } = await supabase
     .from('sales')
-    .select('*, customer:customers(id, name), expense:expenses(id, description)')
+    .select('*, customer:customers(id, name, phone), expense:expenses(id, description)')
     .eq('sale_group_id', groupId)
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -223,7 +223,7 @@ export function useTodaysDeliveries() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales')
-        .select('*, customer:customers(id, name), expense:expenses(id, description)')
+        .select('*, customer:customers(id, name, phone), expense:expenses(id, description)')
         .eq('delivery_date', today)
         .eq('delivered', false)
         .order('created_at', { ascending: true })
@@ -262,7 +262,7 @@ async function fetchDeliveryGroupsPage(
   if (groupIds.length > 0) {
     const { data: rawItems, error: itemsError } = await supabase
       .from('sales')
-      .select('*, customer:customers(id, name), expense:expenses(id, description)')
+      .select('*, customer:customers(id, name, phone), expense:expenses(id, description)')
       .in('sale_group_id', groupIds)
       .order('created_at', { ascending: true })
     if (itemsError) throw itemsError

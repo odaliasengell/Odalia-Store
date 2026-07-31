@@ -74,14 +74,14 @@ export function ExpenseTable({ expenses }: { expenses: ExpenseWithStock[] }) {
                   <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground md:table-cell">
                     {formatDate(expense.expense_date)}
                   </TableCell>
-                  <TableCell>
-                    <p className="font-medium">{expense.description}</p>
+                  <TableCell className="max-w-[220px] whitespace-normal sm:max-w-xs">
+                    <p className="break-words font-medium">{expense.description}</p>
                     <p className="text-xs text-muted-foreground md:hidden">
                       {formatDate(expense.expense_date)}
                       {expense.item_count != null && ` · ${sold_count}/${expense.item_count} vendidas`}
                     </p>
                     {expense.notes && (
-                      <p className="text-xs text-muted-foreground">{expense.notes}</p>
+                      <p className="break-words text-xs text-muted-foreground">{expense.notes}</p>
                     )}
                   </TableCell>
                   <TableCell className="hidden text-right text-sm text-muted-foreground md:table-cell">
