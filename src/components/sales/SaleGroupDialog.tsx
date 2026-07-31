@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import { MoreHorizontal, Package, PackageCheck, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -22,9 +22,9 @@ import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import { useSalesByGroup, useUpdateSaleGroup, useDeleteSale } from '@/hooks/useSales'
+import { useSalesByGroup, useUpdateSaleGroup, useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
 import { useCustomers } from '@/hooks/useCustomers'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatDate } from '@/lib/format'
 import type { PaymentStatus, SaleWithBalance } from '@/types'
 
 const NO_CUSTOMER = '__none__'
@@ -40,6 +40,7 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
   const { data: customers } = useCustomers()
   const updateGroup = useUpdateSaleGroup()
   const deleteSale = useDeleteSale()
+  const markDelivered = useMarkDelivered()
 
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [saleDate, setSaleDate] = useState('')
@@ -86,6 +87,15 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
         delivery_date: deliveryDate || null,
       })
       toast.success('Venta actualizada')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
+  async function handleToggleDelivered(item: SaleWithBalance) {
+    try {
+      await markDelivered.mutateAsync({ id: item.id, delivered: !item.delivered })
+      toast.success(item.delivered ? 'Marcada como no entregada' : 'Marcada como entregada')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
     }
@@ -215,6 +225,13 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                         {[item.category, item.expense?.description].filter(Boolean).join(' · ') ||
                           '—'}
                       </p>
+                      {item.delivery_date && (
+                        <p
+                          className={`text-xs ${item.delivered ? 'text-emerald-600' : 'text-brand-pink-strong'}`}
+                        >
+                          {item.delivered ? 'Entregada' : 'Entrega'}: {formatDate(item.delivery_date)}
+                        </p>
+                      )}
                     </div>
                     <button onClick={() => setPaymentItem(item)} className="shrink-0">
                       <PaymentStatusBadge status={item.balance.payment_status} />
@@ -235,6 +252,16 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                           <Wallet className="size-4" />
                           Abonos
                         </DropdownMenuItem>
+                        {item.delivery_date && (
+                          <DropdownMenuItem onClick={() => handleToggleDelivered(item)}>
+                            {item.delivered ? (
+                              <Package className="size-4" />
+                            ) : (
+                              <PackageCheck className="size-4" />
+                            )}
+                            {item.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => setEditingItem(item)}>
                           <Pencil className="size-4" />
                           Editar

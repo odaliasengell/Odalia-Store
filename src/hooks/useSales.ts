@@ -63,78 +63,6 @@ export function useSales(filters: SaleFilters = {}) {
   })
 }
 
-export interface SalesPage {
-  sales: SaleWithBalance[]
-  count: number
-}
-
-async function fetchSalesPage(
-  filters: SaleFilters,
-  page: number,
-  pageSize: number,
-): Promise<SalesPage> {
-  let statusSaleIds: string[] | null = null
-  if (filters.paymentStatus) {
-    const { data, error } = await supabase
-      .from('sale_balances')
-      .select('sale_id')
-      .eq('payment_status', filters.paymentStatus)
-    if (error) throw error
-    statusSaleIds = (data as { sale_id: string }[]).map((d) => d.sale_id)
-    if (statusSaleIds.length === 0) return { sales: [], count: 0 }
-  }
-
-  let query = supabase
-    .from('sales')
-    .select('*, customer:customers(id, name), expense:expenses(id, description)', {
-      count: 'exact',
-    })
-    .order('sale_date', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  if (filters.from) query = query.gte('sale_date', filters.from)
-  if (filters.to) query = query.lte('sale_date', filters.to)
-  if (filters.customerId) query = query.eq('customer_id', filters.customerId)
-  if (filters.category) query = query.eq('category', filters.category)
-  if (statusSaleIds) query = query.in('id', statusSaleIds)
-
-  const from = (page - 1) * pageSize
-  const { data: sales, count, error } = await query.range(from, from + pageSize - 1)
-  if (error) throw error
-
-  const ids = (sales ?? []).map((s) => (s as unknown as Sale).id)
-  let balances: SaleBalance[] = []
-  if (ids.length > 0) {
-    const { data, error: balancesError } = await supabase
-      .from('sale_balances')
-      .select('*')
-      .in('sale_id', ids)
-    if (balancesError) throw balancesError
-    balances = data as SaleBalance[]
-  }
-  const balanceMap = new Map(balances.map((b) => [b.sale_id, b]))
-
-  const merged = (sales as unknown as SaleWithBalance[]).map((sale) => ({
-    ...sale,
-    balance: balanceMap.get(sale.id) ?? {
-      sale_id: sale.id,
-      total_amount: sale.total_amount,
-      paid_amount: 0,
-      balance_due: sale.total_amount,
-      payment_status: 'pendiente' as const,
-    },
-  }))
-
-  return { sales: merged, count: count ?? 0 }
-}
-
-export function useSalesPage(filters: SaleFilters, page: number, pageSize: number) {
-  return useQuery({
-    queryKey: ['sales', 'page', filters, page, pageSize],
-    queryFn: () => fetchSalesPage(filters, page, pageSize),
-  })
-}
-
 export interface SaleGroupsPage {
   groups: SaleGroupWithItems[]
   count: number
@@ -324,50 +252,78 @@ export interface DeliveryFilters {
   status?: 'pendiente' | 'entregada'
 }
 
-export function useDeliveries(filters: DeliveryFilters, page: number, pageSize: number) {
+async function fetchDeliveryGroupsPage(
+  filters: DeliveryFilters,
+  page: number,
+  pageSize: number,
+): Promise<SaleGroupsPage> {
+  let query = supabase
+    .from('sale_groups')
+    .select('*', { count: 'exact' })
+    .not('delivery_date', 'is', null)
+    .order('delivery_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (filters.status === 'pendiente') query = query.eq('delivered', false)
+  if (filters.status === 'entregada') query = query.eq('delivered', true)
+
+  const from = (page - 1) * pageSize
+  const { data: groups, count, error } = await query.range(from, from + pageSize - 1)
+  if (error) throw error
+
+  const groupIds = (groups as SaleGroup[]).map((g) => g.sale_group_id)
+  let items: SaleWithBalance[] = []
+  if (groupIds.length > 0) {
+    const { data: rawItems, error: itemsError } = await supabase
+      .from('sales')
+      .select('*, customer:customers(id, name), expense:expenses(id, description)')
+      .in('sale_group_id', groupIds)
+      .order('created_at', { ascending: true })
+    if (itemsError) throw itemsError
+
+    const ids = (rawItems ?? []).map((s) => (s as unknown as Sale).id)
+    let balances: SaleBalance[] = []
+    if (ids.length > 0) {
+      const { data, error: balancesError } = await supabase
+        .from('sale_balances')
+        .select('*')
+        .in('sale_id', ids)
+      if (balancesError) throw balancesError
+      balances = data as SaleBalance[]
+    }
+    const balanceMap = new Map(balances.map((b) => [b.sale_id, b]))
+
+    items = (rawItems as unknown as SaleWithBalance[]).map((sale) => ({
+      ...sale,
+      balance: balanceMap.get(sale.id) ?? {
+        sale_id: sale.id,
+        total_amount: sale.total_amount,
+        paid_amount: 0,
+        balance_due: sale.total_amount,
+        payment_status: 'pendiente' as const,
+      },
+    }))
+  }
+
+  const itemsByGroup = new Map<string, SaleWithBalance[]>()
+  for (const item of items) {
+    const arr = itemsByGroup.get(item.sale_group_id) ?? []
+    arr.push(item)
+    itemsByGroup.set(item.sale_group_id, arr)
+  }
+
+  const merged: SaleGroupWithItems[] = (groups as SaleGroup[]).map((g) => {
+    const groupItems = itemsByGroup.get(g.sale_group_id) ?? []
+    return { ...g, items: groupItems, customer: groupItems[0]?.customer ?? null }
+  })
+
+  return { groups: merged, count: count ?? 0 }
+}
+
+export function useDeliveryGroupsPage(filters: DeliveryFilters, page: number, pageSize: number) {
   return useQuery({
-    queryKey: ['sales', 'deliveries', 'all', filters, page, pageSize],
-    queryFn: async (): Promise<SalesPage> => {
-      let query = supabase
-        .from('sales')
-        .select('*, customer:customers(id, name), expense:expenses(id, description)', {
-          count: 'exact',
-        })
-        .not('delivery_date', 'is', null)
-        .order('delivery_date', { ascending: true })
-
-      if (filters.status === 'pendiente') query = query.eq('delivered', false)
-      if (filters.status === 'entregada') query = query.eq('delivered', true)
-
-      const from = (page - 1) * pageSize
-      const { data: sales, count, error } = await query.range(from, from + pageSize - 1)
-      if (error) throw error
-
-      const ids = (sales ?? []).map((s) => (s as unknown as Sale).id)
-      let balances: SaleBalance[] = []
-      if (ids.length > 0) {
-        const { data, error: balancesError } = await supabase
-          .from('sale_balances')
-          .select('*')
-          .in('sale_id', ids)
-        if (balancesError) throw balancesError
-        balances = data as SaleBalance[]
-      }
-      const balanceMap = new Map(balances.map((b) => [b.sale_id, b]))
-
-      const merged = (sales as unknown as SaleWithBalance[]).map((sale) => ({
-        ...sale,
-        balance: balanceMap.get(sale.id) ?? {
-          sale_id: sale.id,
-          total_amount: sale.total_amount,
-          paid_amount: 0,
-          balance_due: sale.total_amount,
-          payment_status: 'pendiente' as const,
-        },
-      }))
-
-      return { sales: merged, count: count ?? 0 }
-    },
+    queryKey: ['sales', 'deliveries', 'groups', filters, page, pageSize],
+    queryFn: () => fetchDeliveryGroupsPage(filters, page, pageSize),
   })
 }
 
@@ -378,8 +334,8 @@ export function useDeliveryCounts() {
       const today = new Date().toISOString().slice(0, 10)
       const base = () =>
         supabase
-          .from('sales')
-          .select('id', { count: 'exact', head: true })
+          .from('sale_groups')
+          .select('sale_group_id', { count: 'exact', head: true })
           .not('delivery_date', 'is', null)
 
       const [pendientesRes, entregadasRes, hoyRes, atrasadasRes] = await Promise.all([

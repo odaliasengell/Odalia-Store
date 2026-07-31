@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { DeliveryTable } from '@/components/deliveries/DeliveryTable'
 import { Pagination } from '@/components/Pagination'
-import { useDeliveries, useDeliveryCounts, type DeliveryFilters } from '@/hooks/useSales'
+import { useDeliveryGroupsPage, useDeliveryCounts, type DeliveryFilters } from '@/hooks/useSales'
 
 const ALL = '__all__'
 const PAGE_SIZE = 20
@@ -22,7 +22,7 @@ export function Entregas() {
     setPage(1)
   }, [filters])
 
-  const { data, isLoading } = useDeliveries(filters, page, PAGE_SIZE)
+  const { data, isLoading } = useDeliveryGroupsPage(filters, page, PAGE_SIZE)
   const { data: counts } = useDeliveryCounts()
 
   return (
@@ -83,7 +83,7 @@ export function Entregas() {
         <p className="text-sm text-muted-foreground">Cargando entregas…</p>
       ) : (
         <>
-          <DeliveryTable deliveries={data?.sales ?? []} />
+          <DeliveryTable groups={data?.groups ?? []} />
           <Pagination page={page} pageSize={PAGE_SIZE} total={data?.count ?? 0} onPageChange={setPage} />
         </>
       )}

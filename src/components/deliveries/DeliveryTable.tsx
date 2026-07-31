@@ -22,9 +22,9 @@ import { useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import type { SaleWithBalance } from '@/types'
+import type { SaleGroupWithItems, SaleWithBalance } from '@/types'
 
-export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] }) {
+export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
   const markDelivered = useMarkDelivered()
   const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
   const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
@@ -39,7 +39,17 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
     }
   }
 
-  if (deliveries.length === 0) {
+  async function handleMarkGroupDelivered(group: SaleGroupWithItems) {
+    const targets = group.items.filter((i) => i.delivery_date && !i.delivered)
+    try {
+      await Promise.all(targets.map((i) => markDelivered.mutateAsync({ id: i.id, delivered: true })))
+      toast.success('Venta marcada como entregada')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
+  if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
         No hay entregas que coincidan con el filtro.
@@ -54,7 +64,7 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
           <TableHeader>
             <TableRow>
               <TableHead>Entrega</TableHead>
-              <TableHead>Prenda</TableHead>
+              <TableHead>Prenda(s)</TableHead>
               <TableHead className="hidden md:table-cell">Cliente</TableHead>
               <TableHead className="hidden text-right md:table-cell">Total</TableHead>
               <TableHead>Estado</TableHead>
@@ -62,66 +72,96 @@ export function DeliveryTable({ deliveries }: { deliveries: SaleWithBalance[] })
             </TableRow>
           </TableHeader>
           <TableBody>
-            {deliveries.map((sale) => (
-              <TableRow
-                key={sale.id}
-                className="cursor-pointer"
-                onClick={() => setGroupId(sale.sale_group_id)}
-              >
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                  {formatDate(sale.delivery_date!)}
-                </TableCell>
-                <TableCell>
-                  <p className="font-medium">{sale.item_name}</p>
-                  <p className="text-xs text-muted-foreground md:hidden">
-                    {sale.customer?.name ?? 'Cliente de paso'} · {formatCurrency(sale.total_amount)}
-                  </p>
-                  {sale.category && <p className="text-xs text-muted-foreground">{sale.category}</p>}
-                </TableCell>
-                <TableCell className="hidden text-sm md:table-cell">
-                  {sale.customer?.name ?? <span className="text-muted-foreground">Cliente de paso</span>}
-                </TableCell>
-                <TableCell className="hidden text-right font-medium md:table-cell">
-                  {formatCurrency(sale.total_amount)}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DeliveryStatusBadge deliveryDate={sale.delivery_date!} delivered={sale.delivered} />
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setGroupId(sale.sale_group_id)}>
-                        <ReceiptText className="size-4" />
-                        Ver venta completa
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleToggleDelivered(sale)}>
-                        {sale.delivered ? (
-                          <Package className="size-4" />
+            {groups.map((group) => {
+              const single = group.items.length === 1 ? group.items[0] : undefined
+              return (
+                <TableRow
+                  key={group.sale_group_id}
+                  className="cursor-pointer"
+                  onClick={() => setGroupId(group.sale_group_id)}
+                >
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {formatDate(group.delivery_date!)}
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">
+                      {single ? single.item_name : `${group.item_count} prendas`}
+                    </p>
+                    <p className="text-xs text-muted-foreground md:hidden">
+                      {group.customer?.name ?? 'Cliente de paso'} · {formatCurrency(group.total_amount)}
+                    </p>
+                    {single?.category && (
+                      <p className="text-xs text-muted-foreground">{single.category}</p>
+                    )}
+                    {!single && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {group.items.map((i) => i.item_name).join(', ')}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden text-sm md:table-cell">
+                    {group.customer?.name ?? (
+                      <span className="text-muted-foreground">Cliente de paso</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden text-right font-medium md:table-cell">
+                    {formatCurrency(group.total_amount)}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setGroupId(group.sale_group_id)}>
+                      <DeliveryStatusBadge
+                        deliveryDate={group.delivery_date!}
+                        delivered={group.delivered}
+                      />
+                    </button>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setGroupId(group.sale_group_id)}>
+                          <ReceiptText className="size-4" />
+                          Ver venta completa
+                        </DropdownMenuItem>
+                        {single ? (
+                          <>
+                            <DropdownMenuItem onClick={() => handleToggleDelivered(single)}>
+                              {single.delivered ? (
+                                <Package className="size-4" />
+                              ) : (
+                                <PackageCheck className="size-4" />
+                              )}
+                              {single.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setPaymentSale(single)}>
+                              <Wallet className="size-4" />
+                              Abonos
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditingSale(single)}>
+                              <Pencil className="size-4" />
+                              Editar
+                            </DropdownMenuItem>
+                          </>
                         ) : (
-                          <PackageCheck className="size-4" />
+                          !group.delivered && (
+                            <DropdownMenuItem onClick={() => handleMarkGroupDelivered(group)}>
+                              <PackageCheck className="size-4" />
+                              Marcar todas como entregadas
+                            </DropdownMenuItem>
+                          )
                         )}
-                        {sale.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setPaymentSale(sale)}>
-                        <Wallet className="size-4" />
-                        Abonos
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setEditingSale(sale)}>
-                        <Pencil className="size-4" />
-                        Editar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>

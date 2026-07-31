@@ -154,7 +154,10 @@ select
   min(s.customer_id::text)::uuid as customer_id,
   min(s.sale_date) as sale_date,
   min(s.delivery_date) as delivery_date,
-  bool_and(s.delivered) as delivered,
+  -- Solo cuenta como "entregada" en base a las prendas que sí tenían
+  -- fecha de entrega; una prenda sin fecha de entrega no cuenta ni a favor
+  -- ni en contra.
+  bool_and(s.delivered) filter (where s.delivery_date is not null) as delivered,
   count(s.id) as item_count,
   sum(s.total_amount) as total_amount,
   coalesce(sum(pay.paid), 0) as paid_amount,
