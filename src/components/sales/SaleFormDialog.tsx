@@ -22,7 +22,7 @@ import { useUploadItemPhoto, useDeleteItemPhoto, getPhotoUrl } from '@/hooks/use
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { formatCurrency } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS } from '@/types'
-import type { Customer, PaymentMethod, SaleWithBalance } from '@/types'
+import type { Customer, PaymentMethod, SaleWithCustomer } from '@/types'
 
 const NO_CUSTOMER = '__none__'
 const NO_PACA = '__none__'
@@ -37,7 +37,6 @@ interface ItemFormState {
   shippingFee: string
   expenseId: string
   notes: string
-  initialPayment: string
   collapsed: boolean
   photoPath: string
   uploadingPhoto: boolean
@@ -53,14 +52,13 @@ function blankItem(): ItemFormState {
     shippingFee: '',
     expenseId: NO_PACA,
     notes: '',
-    initialPayment: '',
     collapsed: false,
     photoPath: '',
     uploadingPhoto: false,
   }
 }
 
-function itemFromSale(sale: SaleWithBalance): ItemFormState {
+function itemFromSale(sale: SaleWithCustomer): ItemFormState {
   return {
     key: sale.id,
     itemName: sale.item_name,
@@ -70,7 +68,6 @@ function itemFromSale(sale: SaleWithBalance): ItemFormState {
     shippingFee: sale.shipping_fee > 0 ? String(sale.shipping_fee) : '',
     expenseId: sale.expense_id ?? NO_PACA,
     notes: sale.notes ?? '',
-    initialPayment: '',
     collapsed: false,
     photoPath: sale.photo_path ?? '',
     uploadingPhoto: false,
@@ -86,7 +83,7 @@ function itemTotal(item: ItemFormState): number {
 interface SaleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sale?: SaleWithBalance
+  sale?: SaleWithCustomer
   defaultCustomerId?: string
   defaultSaleDate?: string
   /** Al agregar prendas a una venta ya existente, el grupo al que deben unirse. */
@@ -115,6 +112,7 @@ export function SaleFormDialog({
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [deliveryDate, setDeliveryDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<string>(NO_METHOD)
+  const [initialPayment, setInitialPayment] = useState('')
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
   const [activeGroupId, setActiveGroupId] = useState('')
 
@@ -160,6 +158,7 @@ export function SaleFormDialog({
       setSaleDate(defaultSaleDate ?? new Date().toISOString().slice(0, 10))
       setDeliveryDate('')
       setPaymentMethod(NO_METHOD)
+      setInitialPayment('')
       setActiveGroupId(groupId ?? crypto.randomUUID())
     }
   }, [open, sale, defaultCustomerId, defaultSaleDate, groupId])
@@ -230,8 +229,7 @@ export function SaleFormDialog({
         toast.success('Venta actualizada')
       } else {
         for (const item of items) {
-          const total = itemTotal(item)
-          const created = await createSale.mutateAsync({
+          await createSale.mutateAsync({
             sale_group_id: activeGroupId,
             item_name: item.itemName,
             sale_price: Number(item.salePrice),
@@ -244,15 +242,15 @@ export function SaleFormDialog({
             photo_path: item.photoPath || null,
             notes: item.notes || null,
           })
-          const paymentAmount = Number(item.initialPayment) || 0
-          if (paymentAmount > 0) {
-            await createPayment.mutateAsync({
-              sale_id: created.id,
-              amount: Math.min(paymentAmount, total),
-              payment_date: saleDate,
-              payment_method: method,
-            })
-          }
+        }
+        const paymentAmount = Number(initialPayment) || 0
+        if (paymentAmount > 0) {
+          await createPayment.mutateAsync({
+            sale_group_id: activeGroupId,
+            amount: Math.min(paymentAmount, grandTotal),
+            payment_date: saleDate,
+            payment_method: method,
+          })
         }
         toast.success(items.length > 1 ? `${items.length} ventas registradas` : 'Venta registrada')
       }
@@ -364,6 +362,28 @@ export function SaleFormDialog({
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="initial-payment">
+                  Pago recibido al momento (de {formatCurrency(grandTotal)})
+                </Label>
+                <Input
+                  id="initial-payment"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  max={grandTotal || undefined}
+                  value={initialPayment}
+                  onChange={(e) => setInitialPayment(e.target.value)}
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se aplica al total de la venta, no a una prenda en particular. Déjalo vacío o en
+                  0 si es a crédito/abonos.
+                </p>
               </div>
             )}
 
@@ -541,28 +561,6 @@ export function SaleFormDialog({
                           placeholder="Talla, color, detalles…"
                         />
                       </div>
-
-                      {!isEditing && (
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor={`initial-payment-${item.key}`}>
-                            Pago recibido al momento (de {formatCurrency(itemTotal(item))})
-                          </Label>
-                          <Input
-                            id={`initial-payment-${item.key}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            max={itemTotal(item) || undefined}
-                            value={item.initialPayment}
-                            onChange={(e) => updateItem(item.key, { initialPayment: e.target.value })}
-                            placeholder="0.00"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Déjalo vacío o en 0 si es a crédito/abonos. Pon el monto si te pagó parte o
-                            todo.
-                          </p>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>

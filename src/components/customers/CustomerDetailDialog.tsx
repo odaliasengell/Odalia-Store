@@ -17,13 +17,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { useSalesByCustomer } from '@/hooks/useSales'
+import { useSaleGroupsByCustomer } from '@/hooks/useSales'
 import { useDeleteCustomer } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
-import type { Customer, PaymentStatus, SaleWithBalance } from '@/types'
+import type { Customer } from '@/types'
 
 interface CustomerDetailDialogProps {
   customer?: Customer
@@ -32,7 +32,7 @@ interface CustomerDetailDialogProps {
 }
 
 export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerDetailDialogProps) {
-  const { data: sales } = useSalesByCustomer(customer?.id)
+  const { data: groups } = useSaleGroupsByCustomer(customer?.id)
   const deleteCustomer = useDeleteCustomer()
   const [editOpen, setEditOpen] = useState(false)
   const [newSaleOpen, setNewSaleOpen] = useState(false)
@@ -40,27 +40,21 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const purchases = useMemo(() => {
-    const map = new Map<string, SaleWithBalance[]>()
-    for (const sale of sales ?? []) {
-      const arr = map.get(sale.sale_group_id) ?? []
-      arr.push(sale)
-      map.set(sale.sale_group_id, arr)
-    }
-    return [...map.entries()]
-      .map(([id, items]) => {
-        const total = items.reduce((sum, i) => sum + i.total_amount, 0)
-        const paid = items.reduce((sum, i) => sum + i.balance.paid_amount, 0)
-        const balanceDue = items.reduce((sum, i) => sum + i.balance.balance_due, 0)
-        const status: PaymentStatus = paid <= 0 ? 'pendiente' : balanceDue <= 0 ? 'pagado' : 'parcial'
-        return { groupId: id, items, date: items[0].sale_date, total, status }
-      })
+    return (groups ?? [])
+      .map((g) => ({
+        groupId: g.sale_group_id,
+        items: g.items,
+        date: g.sale_date,
+        total: g.total_amount,
+        status: g.payment_status,
+      }))
       .sort((a, b) => b.date.localeCompare(a.date))
-  }, [sales])
+  }, [groups])
 
   if (!customer) return null
 
-  const totalSpent = (sales ?? []).reduce((sum, s) => sum + s.total_amount, 0)
-  const pendingBalance = (sales ?? []).reduce((sum, s) => sum + s.balance.balance_due, 0)
+  const totalSpent = (groups ?? []).reduce((sum, g) => sum + g.total_amount, 0)
+  const pendingBalance = (groups ?? []).reduce((sum, g) => sum + g.balance_due, 0)
 
   async function handleDelete() {
     if (!customer) return

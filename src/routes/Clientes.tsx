@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Pagination } from '@/components/Pagination'
 import { useCustomersPage } from '@/hooks/useCustomers'
-import { useSalesByCustomer } from '@/hooks/useSales'
+import { useSaleGroupsByCustomer } from '@/hooks/useSales'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { CustomerDetailDialog } from '@/components/customers/CustomerDetailDialog'
 import { formatCurrency } from '@/lib/format'
@@ -14,8 +14,8 @@ import type { Customer } from '@/types'
 const PAGE_SIZE = 24
 
 function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => void }) {
-  const { data: sales } = useSalesByCustomer(customer.id)
-  const pendingBalance = (sales ?? []).reduce((sum, s) => sum + s.balance.balance_due, 0)
+  const { data: groups } = useSaleGroupsByCustomer(customer.id)
+  const pendingBalance = (groups ?? []).reduce((sum, g) => sum + g.balance_due, 0)
 
   return (
     <button
@@ -25,7 +25,7 @@ function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => 
       <p className="font-medium">{customer.name}</p>
       {customer.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
       <div className="mt-1 flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{sales?.length ?? 0} compras</span>
+        <span className="text-muted-foreground">{groups?.length ?? 0} compras</span>
         {pendingBalance > 0 ? (
           <span className="font-medium text-rose-600">
             Debe {formatCurrency(pendingBalance)}

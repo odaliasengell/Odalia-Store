@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { format, isSameMonth, parseISO, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useSales } from '@/hooks/useSales'
+import { useAllSaleGroups, useSales } from '@/hooks/useSales'
 import { useExpenses } from '@/hooks/useExpenses'
 import { StatsCards } from '@/components/dashboard/StatsCards'
 import { MonthlySalesChart, type MonthlyDatum } from '@/components/dashboard/MonthlySalesChart'
@@ -11,15 +11,16 @@ const MONTHS_TO_SHOW = 6
 
 export function Dashboard() {
   const { data: sales, isLoading: salesLoading } = useSales({})
+  const { data: saleGroups, isLoading: groupsLoading } = useAllSaleGroups()
   const { data: expenses, isLoading: expensesLoading } = useExpenses()
-  const isLoading = salesLoading || expensesLoading
+  const isLoading = salesLoading || groupsLoading || expensesLoading
 
   const stats = useMemo(() => {
     const list = sales ?? []
     const now = new Date()
 
     const totalRevenue = list.reduce((sum, s) => sum + s.total_amount, 0)
-    const pendingBalance = list.reduce((sum, s) => sum + s.balance.balance_due, 0)
+    const pendingBalance = (saleGroups ?? []).reduce((sum, g) => sum + g.balance_due, 0)
     const totalProfit = list.reduce(
       (sum, s) => sum + (s.cost_price != null ? s.total_amount - s.cost_price : 0),
       0,
@@ -38,7 +39,7 @@ export function Dashboard() {
       monthRevenue,
       monthCount: monthSales.length,
     }
-  }, [sales, expenses])
+  }, [sales, saleGroups, expenses])
 
   const monthlyData: MonthlyDatum[] = useMemo(() => {
     const list = sales ?? []

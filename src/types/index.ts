@@ -37,25 +37,14 @@ export type PaymentMethod = 'efectivo' | 'transferencia'
 
 export interface Payment {
   id: string
-  sale_id: string
+  // Un abono aplica al total de la venta completa, no a una prenda en particular.
+  sale_group_id: string
   amount: number
   payment_date: string
   payment_method: PaymentMethod | null
   notes: string | null
   created_by: string | null
   created_at: string
-}
-
-export interface SaleBalance {
-  sale_id: string
-  total_amount: number
-  paid_amount: number
-  balance_due: number
-  payment_status: PaymentStatus
-}
-
-export interface SaleWithBalance extends SaleWithCustomer {
-  balance: SaleBalance
 }
 
 export interface SaleGroup {
@@ -73,7 +62,7 @@ export interface SaleGroup {
 }
 
 export interface SaleGroupWithItems extends SaleGroup {
-  items: SaleWithBalance[]
+  items: SaleWithCustomer[]
   customer: Pick<Customer, 'id' | 'name' | 'phone'> | null
 }
 

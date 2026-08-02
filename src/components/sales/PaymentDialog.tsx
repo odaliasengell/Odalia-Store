@@ -16,20 +16,23 @@ import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { usePayments, useCreatePayment, useDeletePayment } from '@/hooks/usePayments'
+import { useGroupBalance } from '@/hooks/useSales'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS } from '@/types'
-import type { Payment, PaymentMethod, SaleWithBalance } from '@/types'
+import type { Payment, PaymentMethod } from '@/types'
 
 const NO_METHOD = '__unspecified__'
 
 interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sale?: SaleWithBalance
+  groupId?: string
+  label?: string
 }
 
-export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) {
-  const { data: payments } = usePayments(sale?.id)
+export function PaymentDialog({ open, onOpenChange, groupId, label }: PaymentDialogProps) {
+  const { data: group, isLoading } = useGroupBalance(groupId)
+  const { data: payments } = usePayments(groupId)
   const createPayment = useCreatePayment()
   const deletePayment = useDeletePayment()
 
@@ -38,7 +41,7 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
   const [method, setMethod] = useState<string>(NO_METHOD)
   const [deletingPayment, setDeletingPayment] = useState<Payment | undefined>()
 
-  if (!sale) return null
+  if (!groupId) return null
 
   function methodValue(): PaymentMethod | null {
     return method === NO_METHOD ? null : (method as PaymentMethod)
@@ -46,12 +49,12 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
 
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
-    if (!sale) return
+    if (!groupId) return
     const value = Number(amount)
     if (!value || value <= 0) return
     try {
       await createPayment.mutateAsync({
-        sale_id: sale.id,
+        sale_group_id: groupId,
         amount: value,
         payment_date: date,
         payment_method: methodValue(),
@@ -64,11 +67,11 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
   }
 
   async function handleMarkAsPaid() {
-    if (!sale) return
+    if (!groupId || !group) return
     try {
       await createPayment.mutateAsync({
-        sale_id: sale.id,
-        amount: sale.balance.balance_due,
+        sale_group_id: groupId,
+        amount: group.balance_due,
         payment_date: date,
         payment_method: methodValue(),
       })
@@ -80,9 +83,9 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
   }
 
   async function handleDelete() {
-    if (!sale || !deletingPayment) return
+    if (!groupId || !deletingPayment) return
     try {
-      await deletePayment.mutateAsync({ id: deletingPayment.id, sale_id: sale.id })
+      await deletePayment.mutateAsync({ id: deletingPayment.id, sale_group_id: groupId })
       toast.success('Abono eliminado')
       setDeletingPayment(undefined)
     } catch (err) {
@@ -94,111 +97,118 @@ export function PaymentDialog({ open, onOpenChange, sale }: PaymentDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md lg:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Abonos — {sale.item_name}</DialogTitle>
-          <DialogDescription>
-            Total: {formatCurrency(sale.total_amount)} · Pagado:{' '}
-            {formatCurrency(sale.balance.paid_amount)} · Saldo:{' '}
-            {formatCurrency(sale.balance.balance_due)}
-          </DialogDescription>
+          <DialogTitle>Abonos — {label ?? 'venta'}</DialogTitle>
+          {group && (
+            <DialogDescription>
+              Total: {formatCurrency(group.total_amount)} · Pagado:{' '}
+              {formatCurrency(group.paid_amount)} · Saldo: {formatCurrency(group.balance_due)}
+            </DialogDescription>
+          )}
         </DialogHeader>
 
-        <form className="flex flex-col gap-3" onSubmit={handleAddPayment}>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="payment-amount">Monto del abono</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                max={sale.balance.balance_due || undefined}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="payment-date">Fecha</Label>
-              <Input
-                id="payment-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
-              <Label htmlFor="payment-method">Método de pago (opcional)</Label>
-              <Select
-                value={method}
-                onValueChange={(v) => setMethod(v ?? NO_METHOD)}
-                items={{ [NO_METHOD]: 'Sin especificar', ...PAYMENT_METHOD_LABELS }}
-              >
-                <SelectTrigger id="payment-method" className="w-full">
-                  <SelectValue placeholder="Sin especificar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_METHOD}>Sin especificar</SelectItem>
-                  <SelectItem value="efectivo">{PAYMENT_METHOD_LABELS.efectivo}</SelectItem>
-                  <SelectItem value="transferencia">
-                    {PAYMENT_METHOD_LABELS.transferencia}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="submit"
-              disabled={createPayment.isPending || sale.balance.balance_due <= 0}
-            >
-              Agregar abono
-            </Button>
-          </div>
-
-          {sale.balance.balance_due > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              disabled={createPayment.isPending}
-              onClick={handleMarkAsPaid}
-            >
-              <CheckCircle2 className="size-4" />
-              Marcar como pagado ({formatCurrency(sale.balance.balance_due)})
-            </Button>
-          )}
-        </form>
-
-        <Separator />
-
-        <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
-          {!payments || payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aún no hay abonos registrados.</p>
-          ) : (
-            payments.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{formatCurrency(p.amount)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(p.payment_date)}
-                    {p.payment_method && ` · ${PAYMENT_METHOD_LABELS[p.payment_method]}`}
-                  </p>
+        {isLoading || !group ? (
+          <p className="text-sm text-muted-foreground">Cargando…</p>
+        ) : (
+          <>
+            <form className="flex flex-col gap-3" onSubmit={handleAddPayment}>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="payment-amount">Monto del abono</Label>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    max={group.balance_due || undefined}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="payment-date">Fecha</Label>
+                  <Input
+                    id="payment-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
+                  <Label htmlFor="payment-method">Método de pago (opcional)</Label>
+                  <Select
+                    value={method}
+                    onValueChange={(v) => setMethod(v ?? NO_METHOD)}
+                    items={{ [NO_METHOD]: 'Sin especificar', ...PAYMENT_METHOD_LABELS }}
+                  >
+                    <SelectTrigger id="payment-method" className="w-full">
+                      <SelectValue placeholder="Sin especificar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_METHOD}>Sin especificar</SelectItem>
+                      <SelectItem value="efectivo">{PAYMENT_METHOD_LABELS.efectivo}</SelectItem>
+                      <SelectItem value="transferencia">
+                        {PAYMENT_METHOD_LABELS.transferencia}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => setDeletingPayment(p)}
+                  type="submit"
+                  disabled={createPayment.isPending || group.balance_due <= 0}
                 >
-                  <Trash2 className="size-4" />
+                  Agregar abono
                 </Button>
               </div>
-            ))
-          )}
-        </div>
+
+              {group.balance_due > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  disabled={createPayment.isPending}
+                  onClick={handleMarkAsPaid}
+                >
+                  <CheckCircle2 className="size-4" />
+                  Marcar como pagado ({formatCurrency(group.balance_due)})
+                </Button>
+              )}
+            </form>
+
+            <Separator />
+
+            <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
+              {!payments || payments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aún no hay abonos registrados.</p>
+              ) : (
+                payments.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{formatCurrency(p.amount)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(p.payment_date)}
+                        {p.payment_method && ` · ${PAYMENT_METHOD_LABELS[p.payment_method]}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeletingPayment(p)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

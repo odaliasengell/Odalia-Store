@@ -81,7 +81,10 @@ create index if not exists sales_delivery_date_idx on public.sales (delivery_dat
 -- =========================================================
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
-  sale_id uuid not null references public.sales (id) on delete cascade,
+  -- Un abono aplica al total de la venta completa (todas sus prendas juntas),
+  -- no a una prenda en particular — así una venta de varias prendas se puede
+  -- abonar de forma general sin repartir el monto entre cada prenda.
+  sale_group_id uuid not null,
   amount numeric(10, 2) not null check (amount > 0),
   payment_date date not null default current_date,
   payment_method text check (payment_method is null or payment_method in ('efectivo', 'transferencia')),
@@ -90,7 +93,7 @@ create table if not exists public.payments (
   created_at timestamptz not null default now()
 );
 
-create index if not exists payments_sale_id_idx on public.payments (sale_id);
+create index if not exists payments_sale_group_id_idx on public.payments (sale_group_id);
 
 -- =========================================================
 -- 5. expenses — gastos del negocio (pacas y otros costos)
@@ -115,25 +118,7 @@ alter table public.sales
 create index if not exists sales_expense_id_idx on public.sales (expense_id);
 
 -- =========================================================
--- 6. Vista de saldos por venta (evita duplicar la lógica en el frontend)
--- =========================================================
-create or replace view public.sale_balances as
-select
-  s.id as sale_id,
-  s.total_amount,
-  coalesce(sum(p.amount), 0) as paid_amount,
-  s.total_amount - coalesce(sum(p.amount), 0) as balance_due,
-  case
-    when coalesce(sum(p.amount), 0) <= 0 then 'pendiente'
-    when coalesce(sum(p.amount), 0) >= s.total_amount then 'pagado'
-    else 'parcial'
-  end as payment_status
-from public.sales s
-left join public.payments p on p.sale_id = s.id
-group by s.id, s.total_amount;
-
--- =========================================================
--- 7. Vista de stock por paca (cuántas prendas se han vendido de cada gasto)
+-- 6. Vista de stock por paca (cuántas prendas se han vendido de cada gasto)
 -- =========================================================
 create or replace view public.expense_stock as
 select
@@ -146,10 +131,12 @@ left join public.sales s on s.expense_id = e.id
 group by e.id, e.item_count;
 
 -- =========================================================
--- 8. Vista de ventas agrupadas (una fila por "venta"/factura, sumando
---    todas las prendas que comparten sale_group_id). Los pagos se
---    pre-agregan por venta antes del join para no duplicar total_amount
---    cuando una prenda tiene varios abonos.
+-- 7. Vista de ventas agrupadas (una fila por "venta"/factura, sumando
+--    todas las prendas que comparten sale_group_id). Los abonos ya están
+--    guardados a nivel de venta (sale_group_id), así que se pre-agregan a
+--    UN solo valor por venta antes del join — usamos max() (no sum()) al
+--    combinarlo con las prendas para no multiplicarlo por la cantidad de
+--    prendas de la venta (join de una fila contra varias).
 -- =========================================================
 create or replace view public.sale_groups as
 select
@@ -163,20 +150,20 @@ select
   bool_and(s.delivered) filter (where s.delivery_date is not null) as delivered,
   count(s.id) as item_count,
   sum(s.total_amount) as total_amount,
-  coalesce(sum(pay.paid), 0) as paid_amount,
-  sum(s.total_amount) - coalesce(sum(pay.paid), 0) as balance_due,
+  coalesce(max(pay.paid), 0) as paid_amount,
+  sum(s.total_amount) - coalesce(max(pay.paid), 0) as balance_due,
   case
-    when coalesce(sum(pay.paid), 0) <= 0 then 'pendiente'
-    when coalesce(sum(pay.paid), 0) >= sum(s.total_amount) then 'pagado'
+    when coalesce(max(pay.paid), 0) <= 0 then 'pendiente'
+    when coalesce(max(pay.paid), 0) >= sum(s.total_amount) then 'pagado'
     else 'parcial'
   end as payment_status,
   min(s.created_at) as created_at
 from public.sales s
 left join (
-  select sale_id, sum(amount) as paid
+  select sale_group_id, sum(amount) as paid
   from public.payments
-  group by sale_id
-) pay on pay.sale_id = s.id
+  group by sale_group_id
+) pay on pay.sale_group_id = s.sale_group_id
 group by s.sale_group_id;
 
 -- =========================================================
@@ -214,7 +201,7 @@ create policy "expenses_all_authenticated" on public.expenses
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- =========================================================
--- 9. Fotos de prendas (Supabase Storage)
+-- 8. Fotos de prendas (Supabase Storage)
 -- =========================================================
 -- Bucket público: cualquiera con el link puede ver la foto (son solo fotos
 -- de mercancía, nada sensible), pero solo un usuario autenticado puede

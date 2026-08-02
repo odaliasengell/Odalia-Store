@@ -37,7 +37,7 @@ Abre `http://localhost:5173`, inicia sesión con el usuario que creaste en Supab
 
 - **Login** con Supabase Auth (rutas protegidas) y una tarjeta de **perfil** (nombre editable, correo, rol) con el botón de cerrar sesión, accesible desde la parte inferior del menú.
 - **Ventas:** registrar prenda, precio, costo opcional (para calcular ganancia), recargo de envío, cliente y fecha. Filtros por fecha, cliente y estado de pago.
-- **Crédito/abonos:** cada venta puede pagarse completa o a plazos; se puede registrar el pago inicial al crear la venta (con método de pago opcional: efectivo/transferencia) y agregar más abonos después, o marcar el saldo restante como pagado en un clic. El saldo pendiente se calcula automáticamente (badge Pagado / Parcial / Pendiente).
+- **Crédito/abonos:** cada venta puede pagarse completa o a plazos; se puede registrar el pago inicial al crear la venta (con método de pago opcional: efectivo/transferencia) y agregar más abonos después, o marcar el saldo restante como pagado en un clic. **El abono siempre aplica al total de la venta, no a una prenda en particular** — si una venta tiene 3 prendas que suman $25 y te abonan $10, ese abono reduce el saldo de la venta completa, sin tener que repartirlo entre las prendas. El saldo pendiente se calcula automáticamente (badge Pagado / Parcial / Pendiente).
 - **Varias prendas por venta, estilo factura:** la tabla de Ventas muestra **una fila por venta** (no una por prenda) — si una venta tiene varias prendas, se ve como "3 prendas · $45.00". Al tocarla se abre la venta completa: ahí ves el total, el saldo, la lista de prendas, y puedes agregar más, editarlas o eliminarlas sin salir de esa pantalla.
 - **Foto por prenda (opcional):** al registrar o editar una prenda puedes subirle una foto. Se convierte a **WebP** en el propio navegador antes de subirla (se redimensiona y comprime), así ocupa una fracción del espacio de una foto normal — te alcanza para muchas más fotos en el plan gratis de Supabase. Se ve como miniatura en la venta y en la venta completa.
 - **Recibo por WhatsApp:** en la venta completa (y desde el menú ⋯ de la lista de Ventas) hay un botón **"Enviar por WhatsApp"** que abre WhatsApp con un mensaje ya escrito (prendas, total, saldo pendiente) listo para mandarle al cliente — solo falta darle "Enviar". Usa el teléfono guardado en la ficha del cliente; si no tiene teléfono, el botón aparece deshabilitado. **Importante:** para que el enlace abra el chat correcto, el teléfono debe guardarse con código de país (ej. `+593987654321` para Ecuador), no solo el número local — si no, WhatsApp puede marcar el enlace como inválido.
@@ -170,6 +170,58 @@ create policy "item_photos_update_authenticated" on storage.objects
 
 create policy "item_photos_delete_authenticated" on storage.objects
   for delete using (bucket_id = 'item-photos' and auth.role() = 'authenticated');
+```
+
+Y si ya tenías `payments` con abonos por prenda (uno por cada prenda) y quieres que sean por venta completa (un solo abono que aplica a toda la venta, sin importar cuántas prendas tenga), corre esto — tus abonos existentes no se pierden, se reasignan automáticamente a la venta de la prenda a la que apuntaban:
+
+```sql
+-- 1. Agrega la columna nueva y la llena a partir de la prenda a la que apuntaba cada abono.
+alter table public.payments add column if not exists sale_group_id uuid;
+
+update public.payments p
+set sale_group_id = s.sale_group_id
+from public.sales s
+where s.id = p.sale_id and p.sale_group_id is null;
+
+-- 2. Por si algún abono quedó huérfano (la prenda ya no existe), lo borra —
+--    si no hay ninguno, este paso no hace nada.
+delete from public.payments where sale_group_id is null;
+
+alter table public.payments alter column sale_group_id set not null;
+
+-- 3. La vista de "venta agrupada" ahora toma los abonos por sale_group_id
+--    directamente (ya no hay que sumar por prenda). Usa max() en vez de sum()
+--    porque cada abono ya es un solo valor por venta, no por prenda.
+create or replace view public.sale_groups as
+select
+  s.sale_group_id,
+  min(s.customer_id::text)::uuid as customer_id,
+  min(s.sale_date) as sale_date,
+  min(s.delivery_date) as delivery_date,
+  bool_and(s.delivered) filter (where s.delivery_date is not null) as delivered,
+  count(s.id) as item_count,
+  sum(s.total_amount) as total_amount,
+  coalesce(max(pay.paid), 0) as paid_amount,
+  sum(s.total_amount) - coalesce(max(pay.paid), 0) as balance_due,
+  case
+    when coalesce(max(pay.paid), 0) <= 0 then 'pendiente'
+    when coalesce(max(pay.paid), 0) >= sum(s.total_amount) then 'pagado'
+    else 'parcial'
+  end as payment_status,
+  min(s.created_at) as created_at
+from public.sales s
+left join (
+  select sale_group_id, sum(amount) as paid
+  from public.payments
+  group by sale_group_id
+) pay on pay.sale_group_id = s.sale_group_id
+group by s.sale_group_id;
+
+-- 4. La vista de saldo por prenda y la columna vieja ya no se usan.
+drop view if exists public.sale_balances;
+alter table public.payments drop column if exists sale_id;
+
+create index if not exists payments_sale_group_id_idx on public.payments (sale_group_id);
 ```
 
 ## Nota sobre el aviso de entregas

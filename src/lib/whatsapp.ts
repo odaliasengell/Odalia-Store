@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from '@/lib/format'
-import type { SaleWithBalance } from '@/types'
+import type { Sale } from '@/types'
 
 export function hasUsablePhone(phone: string | null | undefined): boolean {
   return !!phone && phone.replace(/\D/g, '').length >= 7
@@ -15,7 +15,7 @@ const DIVIDER = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 export function buildSaleReceiptMessage(params: {
   customerName?: string | null
   saleDate: string
-  items: Pick<SaleWithBalance, 'item_name' | 'total_amount'>[]
+  items: Pick<Sale, 'item_name' | 'total_amount'>[]
   totalAmount: number
   paidAmount: number
   balanceDue: number

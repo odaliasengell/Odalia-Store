@@ -31,12 +31,18 @@ import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import { useSalesByGroup, useUpdateSaleGroup, useDeleteSale, useMarkDelivered } from '@/hooks/useSales'
+import {
+  useSalesByGroup,
+  useGroupBalance,
+  useUpdateSaleGroup,
+  useDeleteSale,
+  useMarkDelivered,
+} from '@/hooks/useSales'
 import { getPhotoUrl } from '@/hooks/useItemPhoto'
 import { useCustomers } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { buildSaleReceiptMessage, buildWhatsAppUrl, hasUsablePhone } from '@/lib/whatsapp'
-import type { PaymentStatus, SaleWithBalance } from '@/types'
+import type { SaleWithCustomer } from '@/types'
 
 const NO_CUSTOMER = '__none__'
 
@@ -48,6 +54,7 @@ interface SaleGroupDialogProps {
 
 export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialogProps) {
   const { data: items, isLoading } = useSalesByGroup(groupId)
+  const { data: group } = useGroupBalance(groupId)
   const { data: customers } = useCustomers()
   const updateGroup = useUpdateSaleGroup()
   const deleteSale = useDeleteSale()
@@ -56,9 +63,9 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
   const [customerId, setCustomerId] = useState(NO_CUSTOMER)
   const [saleDate, setSaleDate] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
-  const [editingItem, setEditingItem] = useState<SaleWithBalance | undefined>()
-  const [paymentItem, setPaymentItem] = useState<SaleWithBalance | undefined>()
-  const [deletingItem, setDeletingItem] = useState<SaleWithBalance | undefined>()
+  const [editingItem, setEditingItem] = useState<SaleWithCustomer | undefined>()
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [deletingItem, setDeletingItem] = useState<SaleWithCustomer | undefined>()
   const [addOpen, setAddOpen] = useState(false)
 
   const first = items?.[0]
@@ -77,10 +84,10 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
     ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])),
   }
 
-  const totalAmount = (items ?? []).reduce((sum, i) => sum + i.total_amount, 0)
-  const paidAmount = (items ?? []).reduce((sum, i) => sum + i.balance.paid_amount, 0)
-  const balanceDue = (items ?? []).reduce((sum, i) => sum + i.balance.balance_due, 0)
-  const status: PaymentStatus = paidAmount <= 0 ? 'pendiente' : balanceDue <= 0 ? 'pagado' : 'parcial'
+  const totalAmount = group?.total_amount ?? 0
+  const paidAmount = group?.paid_amount ?? 0
+  const balanceDue = group?.balance_due ?? 0
+  const status = group?.payment_status ?? 'pendiente'
 
   const dirty =
     first &&
@@ -103,7 +110,7 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
     }
   }
 
-  async function handleToggleDelivered(item: SaleWithBalance) {
+  async function handleToggleDelivered(item: SaleWithCustomer) {
     try {
       await markDelivered.mutateAsync({ id: item.id, delivered: !item.delivered })
       toast.success(item.delivered ? 'Marcada como no entregada' : 'Marcada como entregada')
@@ -216,27 +223,38 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2 self-start"
-                  disabled={!hasUsablePhone(first?.customer?.phone)}
-                  onClick={() => {
-                    if (!first?.customer?.phone) return
-                    const message = buildSaleReceiptMessage({
-                      customerName: first.customer.name,
-                      saleDate,
-                      items: items ?? [],
-                      totalAmount,
-                      paidAmount,
-                      balanceDue,
-                    })
-                    window.open(buildWhatsAppUrl(first.customer.phone, message), '_blank')
-                  }}
-                >
-                  <MessageCircle className="size-4" />
-                  Enviar por WhatsApp
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setPaymentOpen(true)}
+                  >
+                    <Wallet className="size-4" />
+                    Abonos
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={!hasUsablePhone(first?.customer?.phone)}
+                    onClick={() => {
+                      if (!first?.customer?.phone) return
+                      const message = buildSaleReceiptMessage({
+                        customerName: first.customer.name,
+                        saleDate,
+                        items: items ?? [],
+                        totalAmount,
+                        paidAmount,
+                        balanceDue,
+                      })
+                      window.open(buildWhatsAppUrl(first.customer.phone, message), '_blank')
+                    }}
+                  >
+                    <MessageCircle className="size-4" />
+                    Enviar por WhatsApp
+                  </Button>
+                </div>
                 {!hasUsablePhone(first?.customer?.phone) && (
                   <p className="text-xs text-muted-foreground">
                     Agrega el teléfono del cliente para poder enviarle el recibo por WhatsApp.
@@ -280,9 +298,6 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                         </p>
                       )}
                     </div>
-                    <button onClick={() => setPaymentItem(item)} className="shrink-0">
-                      <PaymentStatusBadge status={item.balance.payment_status} />
-                    </button>
                     <span className="w-20 shrink-0 text-right font-medium">
                       {formatCurrency(item.total_amount)}
                     </span>
@@ -295,10 +310,6 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                         }
                       />
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPaymentItem(item)}>
-                          <Wallet className="size-4" />
-                          Abonos
-                        </DropdownMenuItem>
                         {item.delivery_date && (
                           <DropdownMenuItem onClick={() => handleToggleDelivered(item)}>
                             {item.delivered ? (
@@ -340,15 +351,20 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
         sale={editingItem}
       />
       <PaymentDialog
-        open={!!paymentItem}
-        onOpenChange={(open) => !open && setPaymentItem(undefined)}
-        sale={paymentItem}
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        groupId={groupId}
+        label={items && items.length === 1 ? items[0].item_name : `${items?.length ?? 0} prendas`}
       />
       <ConfirmDialog
         open={!!deletingItem}
         onOpenChange={(open) => !open && setDeletingItem(undefined)}
         title="¿Eliminar esta prenda?"
-        description={`"${deletingItem?.item_name}" se eliminará junto con sus abonos registrados. Esta acción no se puede deshacer.`}
+        description={
+          (items?.length ?? 0) <= 1
+            ? `"${deletingItem?.item_name}" se eliminará junto con la venta y sus abonos registrados. Esta acción no se puede deshacer.`
+            : `"${deletingItem?.item_name}" se eliminará. Esta acción no se puede deshacer.`
+        }
         pending={deleteSale.isPending}
         onConfirm={handleDeleteItem}
       />

@@ -34,7 +34,7 @@ import { useDeleteSale, useDeleteSaleGroup, useMarkDelivered } from '@/hooks/use
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import type { SaleGroupWithItems, SaleWithBalance } from '@/types'
+import type { SaleGroupWithItems, SaleWithCustomer } from '@/types'
 
 function groupProfit(group: SaleGroupWithItems): number | null {
   if (group.items.length === 0 || !group.items.every((i) => i.cost_price != null)) return null
@@ -45,9 +45,9 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
   const deleteSale = useDeleteSale()
   const deleteSaleGroup = useDeleteSaleGroup()
   const markDelivered = useMarkDelivered()
-  const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
-  const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
-  const [deletingSale, setDeletingSale] = useState<SaleWithBalance | undefined>()
+  const [editingSale, setEditingSale] = useState<SaleWithCustomer | undefined>()
+  const [paymentGroup, setPaymentGroup] = useState<SaleGroupWithItems | undefined>()
+  const [deletingSale, setDeletingSale] = useState<SaleWithCustomer | undefined>()
   const [deletingGroup, setDeletingGroup] = useState<SaleGroupWithItems | undefined>()
   const [groupId, setGroupId] = useState<string | undefined>()
 
@@ -73,7 +73,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
     }
   }
 
-  async function handleToggleDelivered(sale: SaleWithBalance) {
+  async function handleToggleDelivered(sale: SaleWithCustomer) {
     try {
       await markDelivered.mutateAsync({ id: sale.id, delivered: !sale.delivered })
       toast.success(sale.delivered ? 'Marcada como no entregada' : 'Marcada como entregada')
@@ -203,7 +203,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        single ? setPaymentSale(single) : setGroupId(group.sale_group_id)
+                        setPaymentGroup(group)
                       }}
                     >
                       <PaymentStatusBadge status={group.payment_status} />
@@ -229,11 +229,7 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
                             Enviar por WhatsApp
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem
-                          onClick={() =>
-                            single ? setPaymentSale(single) : setGroupId(group.sale_group_id)
-                          }
-                        >
+                        <DropdownMenuItem onClick={() => setPaymentGroup(group)}>
                           <Wallet className="size-4" />
                           Abonos
                         </DropdownMenuItem>
@@ -293,9 +289,16 @@ export function SaleTable({ groups }: { groups: SaleGroupWithItems[] }) {
         groupId={groupId}
       />
       <PaymentDialog
-        open={!!paymentSale}
-        onOpenChange={(open) => !open && setPaymentSale(undefined)}
-        sale={paymentSale}
+        open={!!paymentGroup}
+        onOpenChange={(open) => !open && setPaymentGroup(undefined)}
+        groupId={paymentGroup?.sale_group_id}
+        label={
+          paymentGroup
+            ? paymentGroup.item_count === 1
+              ? paymentGroup.items[0]?.item_name
+              : `${paymentGroup.item_count} prendas`
+            : undefined
+        }
       />
       <ConfirmDialog
         open={!!deletingSale}

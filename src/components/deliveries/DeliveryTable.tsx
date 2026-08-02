@@ -22,15 +22,15 @@ import { useMarkDelivered } from '@/hooks/useSales'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { SaleGroupDialog } from '@/components/sales/SaleGroupDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
-import type { SaleGroupWithItems, SaleWithBalance } from '@/types'
+import type { SaleGroupWithItems, SaleWithCustomer } from '@/types'
 
 export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
   const markDelivered = useMarkDelivered()
-  const [editingSale, setEditingSale] = useState<SaleWithBalance | undefined>()
-  const [paymentSale, setPaymentSale] = useState<SaleWithBalance | undefined>()
+  const [editingSale, setEditingSale] = useState<SaleWithCustomer | undefined>()
+  const [paymentGroup, setPaymentGroup] = useState<SaleGroupWithItems | undefined>()
   const [groupId, setGroupId] = useState<string | undefined>()
 
-  async function handleToggleDelivered(sale: SaleWithBalance) {
+  async function handleToggleDelivered(sale: SaleWithCustomer) {
     try {
       await markDelivered.mutateAsync({ id: sale.id, delivered: !sale.delivered })
       toast.success(sale.delivered ? 'Marcada como no entregada' : 'Marcada como entregada')
@@ -126,6 +126,10 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
                           <ReceiptText className="size-4" />
                           Ver venta completa
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setPaymentGroup(group)}>
+                          <Wallet className="size-4" />
+                          Abonos
+                        </DropdownMenuItem>
                         {single ? (
                           <>
                             <DropdownMenuItem onClick={() => handleToggleDelivered(single)}>
@@ -135,10 +139,6 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
                                 <PackageCheck className="size-4" />
                               )}
                               {single.delivered ? 'Marcar como no entregada' : 'Marcar como entregada'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setPaymentSale(single)}>
-                              <Wallet className="size-4" />
-                              Abonos
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setEditingSale(single)}>
                               <Pencil className="size-4" />
@@ -174,9 +174,16 @@ export function DeliveryTable({ groups }: { groups: SaleGroupWithItems[] }) {
         groupId={groupId}
       />
       <PaymentDialog
-        open={!!paymentSale}
-        onOpenChange={(open) => !open && setPaymentSale(undefined)}
-        sale={paymentSale}
+        open={!!paymentGroup}
+        onOpenChange={(open) => !open && setPaymentGroup(undefined)}
+        groupId={paymentGroup?.sale_group_id}
+        label={
+          paymentGroup
+            ? paymentGroup.item_count === 1
+              ? paymentGroup.items[0]?.item_name
+              : `${paymentGroup.item_count} prendas`
+            : undefined
+        }
       />
     </>
   )
