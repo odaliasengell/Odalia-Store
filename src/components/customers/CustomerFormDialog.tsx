@@ -15,6 +15,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCreateCustomer, useUpdateCustomer } from '@/hooks/useCustomers'
 import type { Customer } from '@/types'
 
+const DEFAULT_COUNTRY_CODE = '+593 '
+
 interface CustomerFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -40,10 +42,17 @@ export function CustomerFormDialog({
   useEffect(() => {
     if (open) {
       setName(customer?.name ?? '')
-      setPhone(customer?.phone ?? '')
+      setPhone(customer?.phone || DEFAULT_COUNTRY_CODE)
       setNotes(customer?.notes ?? '')
     }
   }, [open, customer])
+
+  function normalizedPhone(): string | null {
+    const digits = phone.replace(/\D/g, '')
+    const countryDigits = DEFAULT_COUNTRY_CODE.replace(/\D/g, '')
+    if (!digits || digits === countryDigits) return null
+    return phone.trim()
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -52,14 +61,14 @@ export function CustomerFormDialog({
         await updateCustomer.mutateAsync({
           id: customer.id,
           name,
-          phone: phone || null,
+          phone: normalizedPhone(),
           notes: notes || null,
         })
         toast.success('Cliente actualizado')
       } else {
         const created = await createCustomer.mutateAsync({
           name,
-          phone: phone || null,
+          phone: normalizedPhone(),
           notes: notes || null,
         })
         toast.success('Cliente agregado')
@@ -100,10 +109,10 @@ export function CustomerFormDialog({
                 id="customer-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ej. +593987654321"
+                placeholder="+593 987654321"
               />
               <p className="text-xs text-muted-foreground">
-                Incluye el código de país para poder enviar el recibo por WhatsApp.
+                Ya viene con el código de país (+593) — solo agrega el número.
               </p>
             </div>
           </div>

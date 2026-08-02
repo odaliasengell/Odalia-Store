@@ -6,6 +6,7 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { StatsCards } from '@/components/dashboard/StatsCards'
 import { MonthlySalesChart, type MonthlyDatum } from '@/components/dashboard/MonthlySalesChart'
 import { RankedBarChart, type RankedDatum } from '@/components/dashboard/RankedBarChart'
+import { PacaPerformanceTable, type PacaPerformance } from '@/components/dashboard/PacaPerformanceTable'
 
 const MONTHS_TO_SHOW = 6
 
@@ -65,17 +66,29 @@ export function Dashboard() {
     }))
   }, [sales])
 
-  const topExpenses: RankedDatum[] = useMemo(() => {
-    const totals = new Map<string, number>()
+  const pacaPerformance: PacaPerformance[] = useMemo(() => {
+    // Cada paca se identifica por su id, nunca por su nombre — así dos pacas
+    // con la misma descripción (ej. "Paca Shein" repetida) no se mezclan.
+    const revenueByExpense = new Map<string, number>()
     for (const sale of sales ?? []) {
-      if (!sale.expense) continue
-      totals.set(sale.expense.description, (totals.get(sale.expense.description) ?? 0) + sale.total_amount)
+      if (!sale.expense_id) continue
+      revenueByExpense.set(
+        sale.expense_id,
+        (revenueByExpense.get(sale.expense_id) ?? 0) + sale.total_amount,
+      )
     }
-    return [...totals.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5)
-  }, [sales])
+    return (expenses ?? [])
+      .map((e) => ({
+        id: e.id,
+        description: e.description,
+        date: e.expense_date,
+        cost: e.amount,
+        sold: revenueByExpense.get(e.id) ?? 0,
+        soldCount: e.stock.sold_count,
+        remaining: e.stock.remaining,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }, [sales, expenses])
 
   const topCustomers: RankedDatum[] = useMemo(() => {
     const totals = new Map<string, number>()
@@ -112,10 +125,9 @@ export function Dashboard() {
 
           <MonthlySalesChart data={monthlyData} />
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <RankedBarChart title="Top pacas por ventas" data={topExpenses} />
-            <RankedBarChart title="Top clientes" data={topCustomers} />
-          </div>
+          <PacaPerformanceTable data={pacaPerformance} />
+
+          <RankedBarChart title="Top clientes" data={topCustomers} />
         </>
       )}
     </div>
