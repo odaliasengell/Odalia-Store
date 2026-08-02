@@ -6,6 +6,7 @@ import {
   Users,
   Receipt,
   PackageCheck,
+  Dices,
   Menu,
   X,
   Sparkles,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: '/clientes', label: 'Clientes', icon: Users },
   { to: '/gastos', label: 'Gastos', icon: Receipt },
   { to: '/entregas', label: 'Entregas', icon: PackageCheck },
+  { to: '/ruleta', label: 'Ruleta', icon: Dices },
 ]
 
 function UserMenuButton({ onClick }: { onClick: () => void }) {

@@ -9,6 +9,7 @@ const Ventas = lazy(() => import('@/routes/Ventas').then((m) => ({ default: m.Ve
 const Clientes = lazy(() => import('@/routes/Clientes').then((m) => ({ default: m.Clientes })))
 const Gastos = lazy(() => import('@/routes/Gastos').then((m) => ({ default: m.Gastos })))
 const Entregas = lazy(() => import('@/routes/Entregas').then((m) => ({ default: m.Entregas })))
+const Ruleta = lazy(() => import('@/routes/Ruleta').then((m) => ({ default: m.Ruleta })))
 
 function RouteFallback() {
   return <p className="p-8 text-sm text-muted-foreground">Cargando…</p>
@@ -73,6 +74,18 @@ function App() {
             <AppShell>
               <Suspense fallback={<RouteFallback />}>
                 <Entregas />
+              </Suspense>
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ruleta"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <Suspense fallback={<RouteFallback />}>
+                <Ruleta />
               </Suspense>
             </AppShell>
           </ProtectedRoute>
