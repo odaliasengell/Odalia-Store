@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   )
 
   return (
-    <div className="flex min-h-svh bg-background">
+    <div className="flex h-svh overflow-hidden bg-background">
       {/* Sidebar desktop */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2 px-5 py-5">
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile topbar */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-full bg-brand-pink-strong text-white">
