@@ -3,8 +3,10 @@ import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Pagination } from '@/components/Pagination'
-import { useCustomersPage } from '@/hooks/useCustomers'
+import { useCustomersPage, type CustomerStatusFilter } from '@/hooks/useCustomers'
 import { useSaleGroupsByCustomer } from '@/hooks/useSales'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { CustomerDetailDialog } from '@/components/customers/CustomerDetailDialog'
@@ -12,6 +14,12 @@ import { formatCurrency } from '@/lib/format'
 import type { Customer } from '@/types'
 
 const PAGE_SIZE = 24
+
+const STATUS_ITEMS: Record<CustomerStatusFilter, string> = {
+  active: 'Activos',
+  inactive: 'Inactivos',
+  all: 'Todos',
+}
 
 function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => void }) {
   const { data: groups } = useSaleGroupsByCustomer(customer.id)
@@ -22,7 +30,10 @@ function CustomerCard({ customer, onOpen }: { customer: Customer; onOpen: () => 
       onClick={onOpen}
       className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-brand-pink-strong"
     >
-      <p className="font-medium">{customer.name}</p>
+      <div className="flex items-center gap-2">
+        <p className="font-medium">{customer.name}</p>
+        {!customer.active && <Badge variant="secondary">Inactivo</Badge>}
+      </div>
       {customer.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
       <div className="mt-1 flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{groups?.length ?? 0} compras</span>
@@ -42,6 +53,7 @@ export function Clientes() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [status, setStatus] = useState<CustomerStatusFilter>('active')
   const [createOpen, setCreateOpen] = useState(false)
   const [selected, setSelected] = useState<Customer | undefined>()
 
@@ -52,9 +64,9 @@ export function Clientes() {
 
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch])
+  }, [debouncedSearch, status])
 
-  const { data, isLoading } = useCustomersPage(debouncedSearch, page, PAGE_SIZE)
+  const { data, isLoading } = useCustomersPage(debouncedSearch, page, PAGE_SIZE, status)
   const customers = data?.customers ?? []
 
   return (
@@ -72,14 +84,30 @@ export function Clientes() {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-9"
-          placeholder="Buscar por nombre o teléfono…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex flex-wrap gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por nombre o teléfono…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select
+          value={status}
+          onValueChange={(v) => setStatus((v ?? 'active') as CustomerStatusFilter)}
+          items={STATUS_ITEMS}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (

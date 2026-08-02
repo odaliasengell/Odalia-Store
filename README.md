@@ -41,7 +41,7 @@ Abre `http://localhost:5173`, inicia sesión con el usuario que creaste en Supab
 - **Varias prendas por venta, estilo factura:** la tabla de Ventas muestra **una fila por venta** (no una por prenda) — si una venta tiene varias prendas, se ve como "3 prendas · $45.00". Al tocarla se abre la venta completa: ahí ves el total, el saldo, la lista de prendas, y puedes agregar más, editarlas o eliminarlas sin salir de esa pantalla.
 - **Foto por prenda (opcional):** al registrar o editar una prenda puedes subirle una foto. Se convierte a **WebP** en el propio navegador antes de subirla (se redimensiona y comprime), así ocupa una fracción del espacio de una foto normal — te alcanza para muchas más fotos en el plan gratis de Supabase. Se ve como miniatura en la venta y en la venta completa.
 - **Recibo por WhatsApp:** en la venta completa (y desde el menú ⋯ de la lista de Ventas) hay un botón **"Enviar por WhatsApp"** que abre WhatsApp con un mensaje ya escrito (prendas, total, saldo pendiente) listo para mandarle al cliente — solo falta darle "Enviar". Usa el teléfono guardado en la ficha del cliente; si no tiene teléfono, el botón aparece deshabilitado. **Importante:** para que el enlace abra el chat correcto, el teléfono debe guardarse con código de país (ej. `+593987654321` para Ecuador), no solo el número local — si no, WhatsApp puede marcar el enlace como inválido.
-- **Clientes:** alta, búsqueda, historial de compras y saldo pendiente por cliente.
+- **Clientes:** alta, búsqueda, historial de compras y saldo pendiente por cliente. Se pueden marcar como **inactivos** (en vez de eliminarlos) para clientes que ya no compran — no se borra nada, solo se archivan; el filtro de la lista (Activos/Inactivos/Todos) por defecto solo muestra los activos.
 - **Gastos:** registra cada paca u otro costo del negocio (monto, cantidad de prendas, fecha) para ver el costo promedio por prenda. Al registrar una venta puedes elegir de qué paca salió la prenda; la app descuenta automáticamente el stock y muestra cuántas prendas quedan de cada paca (no bloquea la venta si ya no quedan, solo lo marca en rojo, por si el conteo real no cuadra exacto).
 - **Estadísticas:** ganancia por prenda, ventas del mes, monto por cobrar, gastos del negocio y **ganancia neta** (ingresos − gastos), ventas por mes (últimos 6 meses), **rendimiento por paca** (costo vs. vendido vs. ganancia de cada paca por separado — nunca se mezclan aunque dos pacas se llamen igual) y top clientes.
 - **Entregas:** al registrar una venta puedes poner opcionalmente una fecha de entrega. El día que toque, se muestra un aviso arriba de cualquier pantalla de la app con la lista de entregas pendientes de ese día, con un botón para marcarlas como entregadas. También puedes activar un aviso nativo del navegador (botón "Activar avisos") para que te salga una notificación al abrir la app ese día. Además hay una sección **Entregas** en el menú con todas las entregas programadas (pendientes, atrasadas, de hoy y ya entregadas), igual que Clientes o Gastos.
@@ -222,6 +222,14 @@ drop view if exists public.sale_balances;
 alter table public.payments drop column if exists sale_id;
 
 create index if not exists payments_sale_group_id_idx on public.payments (sale_group_id);
+```
+
+Y si ya tenías `customers` pero no el estado activo/inactivo, corre también esto — todos tus clientes existentes quedan como "activos" por defecto:
+
+```sql
+alter table public.customers add column if not exists active boolean not null default true;
+
+create index if not exists customers_active_idx on public.customers (active);
 ```
 
 ## Nota sobre el aviso de entregas

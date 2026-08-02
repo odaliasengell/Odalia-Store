@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, Trash2, UserCheck, UserX } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,7 @@ import {
 import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useSaleGroupsByCustomer } from '@/hooks/useSales'
-import { useDeleteCustomer } from '@/hooks/useCustomers'
+import { useDeleteCustomer, useSetCustomerActive } from '@/hooks/useCustomers'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
@@ -34,6 +35,7 @@ interface CustomerDetailDialogProps {
 export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerDetailDialogProps) {
   const { data: groups } = useSaleGroupsByCustomer(customer?.id)
   const deleteCustomer = useDeleteCustomer()
+  const setActive = useSetCustomerActive()
   const [editOpen, setEditOpen] = useState(false)
   const [newSaleOpen, setNewSaleOpen] = useState(false)
   const [groupId, setGroupId] = useState<string | undefined>()
@@ -68,13 +70,26 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
     }
   }
 
+  async function handleToggleActive() {
+    if (!customer) return
+    try {
+      await setActive.mutateAsync({ id: customer.id, active: !customer.active })
+      toast.success(customer.active ? 'Cliente marcado como inactivo' : 'Cliente marcado como activo')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error')
+    }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg lg:max-w-2xl">
           <DialogHeader>
             <div className="flex items-center justify-between pr-8">
-              <DialogTitle>{customer.name}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <DialogTitle>{customer.name}</DialogTitle>
+                {!customer.active && <Badge variant="secondary">Inactivo</Badge>}
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -87,6 +102,14 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
                   <DropdownMenuItem onClick={() => setEditOpen(true)}>
                     <Pencil className="size-4" />
                     Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleToggleActive}>
+                    {customer.active ? (
+                      <UserX className="size-4" />
+                    ) : (
+                      <UserCheck className="size-4" />
+                    )}
+                    {customer.active ? 'Marcar como inactivo' : 'Marcar como activo'}
                   </DropdownMenuItem>
                   <DropdownMenuItem variant="destructive" onClick={() => setDeleteConfirmOpen(true)}>
                     <Trash2 className="size-4" />
@@ -159,7 +182,7 @@ export function CustomerDetailDialog({ customer, open, onOpenChange }: CustomerD
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
         title="¿Eliminar este cliente?"
-        description={`"${customer.name}" se eliminará. Sus ventas pasadas se conservan, pero quedarán sin cliente asignado. Esta acción no se puede deshacer.`}
+        description={`"${customer.name}" se eliminará. Sus ventas pasadas se conservan, pero quedarán sin cliente asignado. Esta acción no se puede deshacer — si solo ya no te compra, mejor usa "Marcar como inactivo".`}
         pending={deleteCustomer.isPending}
         onConfirm={handleDelete}
       />

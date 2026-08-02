@@ -5,6 +5,7 @@ export interface Customer {
   name: string
   phone: string | null
   notes: string | null
+  active: boolean
   created_by: string | null
   created_at: string
 }

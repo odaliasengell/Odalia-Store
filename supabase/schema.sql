@@ -39,9 +39,14 @@ create table if not exists public.customers (
   name text not null,
   phone text,
   notes text,
+  -- Para "archivar" clientes que ya no compran sin borrarlos (y sin perder
+  -- su historial de compras vinculado).
+  active boolean not null default true,
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now()
 );
+
+create index if not exists customers_active_idx on public.customers (active);
 
 -- =========================================================
 -- 3. sales

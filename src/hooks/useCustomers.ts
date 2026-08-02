@@ -25,14 +25,23 @@ function escapeOrFilter(value: string): string {
   return value.replace(/[,()]/g, '')
 }
 
-export function useCustomersPage(search: string, page: number, pageSize: number) {
+export type CustomerStatusFilter = 'active' | 'inactive' | 'all'
+
+export function useCustomersPage(
+  search: string,
+  page: number,
+  pageSize: number,
+  status: CustomerStatusFilter = 'active',
+) {
   return useQuery({
-    queryKey: ['customers', 'page', search, page, pageSize],
+    queryKey: ['customers', 'page', search, page, pageSize, status],
     queryFn: async (): Promise<CustomersPage> => {
       let query = supabase
         .from('customers')
         .select('*', { count: 'exact' })
         .order('name', { ascending: true })
+
+      if (status !== 'all') query = query.eq('active', status === 'active')
 
       const term = escapeOrFilter(search.trim())
       if (term) {
@@ -102,6 +111,20 @@ export function useUpdateCustomer() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['customers', data.id] })
+    },
+  })
+}
+
+export function useSetCustomerActive() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.from('customers').update({ active }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['customers', variables.id] })
     },
   })
 }
