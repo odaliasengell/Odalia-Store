@@ -20,6 +20,7 @@ import { useCreatePayment } from '@/hooks/usePayments'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useUploadItemPhoto, useDeleteItemPhoto, getPhotoUrl } from '@/hooks/useItemPhoto'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
+import { CustomerCombobox } from '@/components/customers/CustomerCombobox'
 import { formatCurrency } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS } from '@/types'
 import type { Customer, PaymentMethod, SaleWithCustomer } from '@/types'
@@ -124,13 +125,6 @@ export function SaleFormDialog({
 
   const grandTotal = useMemo(() => items.reduce((sum, item) => sum + itemTotal(item), 0), [items])
 
-  const customerItems = useMemo(
-    () => ({
-      [NO_CUSTOMER]: 'Cliente de paso',
-      ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])),
-    }),
-    [customers],
-  )
   const expenseItems = useMemo(
     () => ({
       [NO_PACA]: 'Sin especificar',
@@ -303,24 +297,13 @@ export function SaleFormDialog({
                     </button>
                   )}
                 </div>
-                <Select
+                <CustomerCombobox
+                  id="customer"
+                  customers={customers ?? []}
                   value={customerId}
-                  onValueChange={(value) => setCustomerId(value ?? NO_CUSTOMER)}
-                  items={customerItems}
+                  onValueChange={setCustomerId}
                   disabled={!!groupId}
-                >
-                  <SelectTrigger id="customer" className="w-full">
-                    <SelectValue placeholder="Selecciona un cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_CUSTOMER}>Cliente de paso</SelectItem>
-                    {customers?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
                 <Label htmlFor="delivery-date">Fecha de entrega (opcional)</Label>

@@ -20,7 +20,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +30,7 @@ import { PaymentStatusBadge } from '@/components/PaymentStatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
 import { PaymentDialog } from '@/components/sales/PaymentDialog'
+import { CustomerCombobox } from '@/components/customers/CustomerCombobox'
 import {
   useSalesByGroup,
   useGroupBalance,
@@ -78,11 +78,6 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
   }, [open, first])
 
   if (!groupId) return null
-
-  const customerItems = {
-    [NO_CUSTOMER]: 'Cliente de paso',
-    ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])),
-  }
 
   const totalAmount = group?.total_amount ?? 0
   const paidAmount = group?.paid_amount ?? 0
@@ -161,23 +156,12 @@ export function SaleGroupDialog({ open, onOpenChange, groupId }: SaleGroupDialog
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="group-customer">Cliente</Label>
-                  <Select
+                  <CustomerCombobox
+                    id="group-customer"
+                    customers={customers ?? []}
                     value={customerId}
-                    onValueChange={(v) => setCustomerId(v ?? NO_CUSTOMER)}
-                    items={customerItems}
-                  >
-                    <SelectTrigger id="group-customer" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_CUSTOMER}>Cliente de paso</SelectItem>
-                      {customers?.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={setCustomerId}
+                  />
                 </div>
                 <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
                   <Label htmlFor="group-delivery">Fecha de entrega (opcional)</Label>
