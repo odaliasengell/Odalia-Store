@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SaleTable } from '@/components/sales/SaleTable'
 import { SaleFormDialog } from '@/components/sales/SaleFormDialog'
+import { CustomerCombobox } from '@/components/customers/CustomerCombobox'
 import { Pagination } from '@/components/Pagination'
 import { useSaleGroupsPage, type SaleFilters } from '@/hooks/useSales'
 import { useCustomers } from '@/hooks/useCustomers'
@@ -14,11 +15,19 @@ import type { PaymentStatus } from '@/types'
 const ALL = '__all__'
 const PAGE_SIZE = 20
 
+type SalesTab = 'por-cobrar' | 'pagadas' | 'todas'
+
+const TAB_PAYMENT_STATUS: Record<SalesTab, PaymentStatus | PaymentStatus[] | undefined> = {
+  'por-cobrar': ['pendiente', 'parcial'],
+  pagadas: 'pagado',
+  todas: undefined,
+}
+
 export function Ventas() {
+  const [tab, setTab] = useState<SalesTab>('por-cobrar')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [customerId, setCustomerId] = useState(ALL)
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | typeof ALL>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
   const [page, setPage] = useState(1)
 
@@ -29,9 +38,9 @@ export function Ventas() {
       from: from || undefined,
       to: to || undefined,
       customerId: customerId === ALL ? undefined : customerId,
-      paymentStatus: paymentStatus === ALL ? undefined : paymentStatus,
+      paymentStatus: TAB_PAYMENT_STATUS[tab],
     }),
-    [from, to, customerId, paymentStatus],
+    [from, to, customerId, tab],
   )
 
   useEffect(() => {
@@ -39,17 +48,6 @@ export function Ventas() {
   }, [filters])
 
   const { data, isLoading } = useSaleGroupsPage(filters, page, PAGE_SIZE)
-
-  const customerItems = useMemo(
-    () => ({ [ALL]: 'Todos', ...Object.fromEntries((customers ?? []).map((c) => [c.id, c.name])) }),
-    [customers],
-  )
-  const paymentStatusItems = {
-    [ALL]: 'Todos',
-    pagado: 'Pagado',
-    parcial: 'Parcial',
-    pendiente: 'Pendiente',
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,7 +64,15 @@ export function Ventas() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-4">
+      <Tabs value={tab} onValueChange={(v) => setTab((v ?? 'por-cobrar') as SalesTab)}>
+        <TabsList>
+          <TabsTrigger value="por-cobrar">Por cobrar</TabsTrigger>
+          <TabsTrigger value="pagadas">Pagadas</TabsTrigger>
+          <TabsTrigger value="todas">Todas</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="filter-from">Desde</Label>
           <Input id="filter-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -75,43 +81,16 @@ export function Ventas() {
           <Label htmlFor="filter-to">Hasta</Label>
           <Input id="filter-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Cliente</Label>
-          <Select
+        <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+          <Label htmlFor="filter-customer">Cliente</Label>
+          <CustomerCombobox
+            id="filter-customer"
+            customers={customers ?? []}
             value={customerId}
-            onValueChange={(value) => setCustomerId(value ?? ALL)}
-            items={customerItems}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos</SelectItem>
-              {customers?.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Estado de pago</Label>
-          <Select
-            value={paymentStatus}
-            onValueChange={(value) => setPaymentStatus((value ?? ALL) as typeof paymentStatus)}
-            items={paymentStatusItems}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos</SelectItem>
-              <SelectItem value="pagado">Pagado</SelectItem>
-              <SelectItem value="parcial">Parcial</SelectItem>
-              <SelectItem value="pendiente">Pendiente</SelectItem>
-            </SelectContent>
-          </Select>
+            onValueChange={setCustomerId}
+            emptyValue={ALL}
+            emptyLabel="Todos"
+          />
         </div>
       </div>
 

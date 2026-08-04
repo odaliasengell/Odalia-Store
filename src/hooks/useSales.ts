@@ -14,7 +14,7 @@ export interface SaleFilters {
   from?: string
   to?: string
   customerId?: string
-  paymentStatus?: PaymentStatus
+  paymentStatus?: PaymentStatus | PaymentStatus[]
 }
 
 async function fetchSales(filters: SaleFilters = {}): Promise<SaleWithCustomer[]> {
@@ -78,7 +78,11 @@ async function fetchSaleGroupsPage(
   if (filters.from) query = query.gte('sale_date', filters.from)
   if (filters.to) query = query.lte('sale_date', filters.to)
   if (filters.customerId) query = query.eq('customer_id', filters.customerId)
-  if (filters.paymentStatus) query = query.eq('payment_status', filters.paymentStatus)
+  if (filters.paymentStatus) {
+    query = Array.isArray(filters.paymentStatus)
+      ? query.in('payment_status', filters.paymentStatus)
+      : query.eq('payment_status', filters.paymentStatus)
+  }
 
   const from = (page - 1) * pageSize
   const { data: groups, count, error } = await query.range(from, from + pageSize - 1)

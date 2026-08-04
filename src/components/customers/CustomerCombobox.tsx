@@ -21,6 +21,11 @@ interface CustomerComboboxProps {
   value: string
   onValueChange: (value: string) => void
   disabled?: boolean
+  /** Valor/etiqueta de la opción "vacía" — por defecto representa "Cliente de paso"
+   * (sin cliente asignado a la venta). Se puede sobreescribir, ej. para un filtro
+   * donde esa opción debe significar "Todos" en vez de "Cliente de paso". */
+  emptyValue?: string
+  emptyLabel?: string
 }
 
 export function CustomerCombobox({
@@ -29,20 +34,22 @@ export function CustomerCombobox({
   value,
   onValueChange,
   disabled,
+  emptyValue = NO_CUSTOMER,
+  emptyLabel = "Cliente de paso",
 }: CustomerComboboxProps) {
   const nameById = useMemo(() => {
-    const map = new Map<string, string>([[NO_CUSTOMER, "Cliente de paso"]])
+    const map = new Map<string, string>([[emptyValue, emptyLabel]])
     for (const c of customers) map.set(c.id, c.name)
     return map
-  }, [customers])
+  }, [customers, emptyValue, emptyLabel])
 
-  const items = useMemo(() => [NO_CUSTOMER, ...customers.map((c) => c.id)], [customers])
+  const items = useMemo(() => [emptyValue, ...customers.map((c) => c.id)], [customers, emptyValue])
 
   return (
     <Combobox
       items={items}
       value={value}
-      onValueChange={(v) => onValueChange(v ?? NO_CUSTOMER)}
+      onValueChange={(v) => onValueChange(v ?? emptyValue)}
       itemToStringLabel={(v: string) => nameById.get(v) ?? ""}
       filter={(itemValue: string, query: string) =>
         (nameById.get(itemValue) ?? "").toLowerCase().includes(query.trim().toLowerCase())
